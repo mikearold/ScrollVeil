@@ -379,3 +379,37 @@ New `scroll` event listener with 300ms debounce fires an immediate rescan when t
 ### Files Modified
 - `content.js` — Added `srcset`/`loading` to attributeFilter (~line 3092), expanded attribute mutation handler (~line 3042), added scroll-triggered rescan with debounce (~line 3157)
 - `DEVLOG.md` — this entry
+
+
+---
+
+## 2026-03-06 — Website Updated: Screenshot Gallery
+
+### What Changed
+Added a "See It In Action" section to the ScrollVeil website (scrollveil.com) with 12 screenshots showcasing the extension across multiple platforms.
+
+### Screenshots Added
+- 7 Google Images screenshots (bikini detection, tomato safe content, apple modals, settings popup)
+- 1 X/Twitter screenshot (real-time analysis on social media)
+- 1 Instagram screenshot (detail modal with skin analysis)
+- 3 additional detail modal screenshots showing full detection breakdowns
+
+### Features
+- Color-coded platform badges (Google Images, X/Twitter, Instagram)
+- Click-to-zoom lightbox for full-size viewing
+- Descriptive captions for each screenshot
+- "Screenshots" link added to navigation bar
+- All images at original resolution for sharpness
+
+### Store Screenshots
+- 5 screenshots resized to 1280x800 for Chrome Web Store submission
+- Mix of platforms: Google Images, X/Twitter, Instagram
+
+### Git
+- Initialized git in ScrollVeil folder, connected to github.com/mikearold/ScrollVeil
+- Force pushed updated index.html + screenshots/ folder to main branch
+
+### Files Modified
+- `index.html` — Added screenshot gallery section with lightbox
+- `screenshots/` — New folder with 12 PNG screenshots
+- `DEVLOG.md` — this entry
