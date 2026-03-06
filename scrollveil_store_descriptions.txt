@@ -1,0 +1,31 @@
+SCROLLVEIL - CHROME WEB STORE DESCRIPTIONS
+==========================================
+
+SHORT DESCRIPTION (132 characters max):
+---------------------------------------
+Automatically blurs and blocks inappropriate images and videos across any website. Protect your browsing experience with one click.
+
+(127 characters)
+
+
+DETAILED DESCRIPTION:
+---------------------
+Browse the web without unwanted surprises.
+
+ScrollVeil is a content filtering extension that automatically detects and blurs inappropriate images and videos as you scroll—on any website, anywhere on the internet.
+
+Whether you're a parent protecting your children, a professional keeping your screen work-appropriate, or simply someone who prefers a cleaner browsing experience free from suggestive content, ScrollVeil works quietly in the background so you can focus on what matters.
+
+Key Features:
+
+• Works everywhere — ScrollVeil filters content across any website you visit
+• Automatic protection — Images and videos are blurred in real-time as you scroll
+• Customizable settings — Adjust sensitivity levels and choose what gets filtered
+• Set it and forget it — Install once and browse with confidence
+• Lightweight — Runs smoothly without slowing down your browsing
+
+How It Works:
+
+Simply install ScrollVeil and it starts protecting your browsing immediately. No complicated setup, no accounts to create. If you want more control, open the settings to fine-tune your filtering preferences.
+
+Take back control of your browsing experience. Install ScrollVeil today.

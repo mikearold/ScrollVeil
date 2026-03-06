@@ -1,0 +1,3606 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>SafeScroll Detection Workbench</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: #1a1a2e;
+  color: #e0e0e0;
+  min-height: 100vh;
+}
+.header {
+  background: #16213e;
+  padding: 12px 24px;
+  border-bottom: 2px solid #0f3460;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.header h1 {
+  font-size: 20px;
+  color: #e94560;
+  font-weight: 700;
+}
+.header .subtitle {
+  color: #888;
+  font-size: 13px;
+}
+.model-status {
+  margin-left: auto;
+  display: flex;
+  gap: 12px;
+  font-size: 12px;
+}
+.model-status .model-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.model-status .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #555;
+}
+.model-status .dot.loading { background: #f0a500; animation: pulse 1s infinite; }
+.model-status .dot.ready { background: #4CAF50; }
+.model-status .dot.error { background: #e94560; }
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+.main {
+  display: flex;
+  height: calc(100vh - 50px);
+}
+
+/* Left panel: image + overlays */
+.canvas-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+  min-width: 0;
+}
+
+/* Drop zone */
+.drop-zone {
+  border: 2px dashed #0f3460;
+  border-radius: 12px;
+  padding: 40px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-bottom: 12px;
+}
+.drop-zone:hover, .drop-zone.dragover {
+  border-color: #e94560;
+  background: rgba(233, 69, 96, 0.05);
+}
+.drop-zone p { color: #888; font-size: 14px; }
+.drop-zone .hint { font-size: 12px; color: #555; margin-top: 8px; }
+
+/* Canvas container */
+.canvas-container {
+  position: relative;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #111;
+  border-radius: 8px;
+  overflow: hidden;
+  min-height: 300px;
+}
+.canvas-container canvas {
+  max-width: 100%;
+  max-height: 100%;
+  image-rendering: auto;
+}
+#placeholder-text {
+  color: #444;
+  font-size: 16px;
+  position: absolute;
+}
+
+/* Right panel: controls + results */
+.controls-panel {
+  width: 360px;
+  background: #16213e;
+  border-left: 1px solid #0f3460;
+  overflow-y: auto;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.panel-section {
+  background: #1a1a2e;
+  border-radius: 8px;
+  padding: 12px;
+}
+.panel-section h3 {
+  font-size: 13px;
+  color: #e94560;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 8px;
+}
+
+/* Layer toggles */
+.toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  font-size: 13px;
+}
+.toggle-row input[type="checkbox"] {
+  accent-color: #e94560;
+}
+.toggle-row .color-swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+/* Score display */
+.score-display {
+  text-align: center;
+  padding: 16px;
+}
+.score-number {
+  font-size: 48px;
+  font-weight: 700;
+  line-height: 1;
+}
+.score-label {
+  font-size: 12px;
+  color: #888;
+  margin-top: 4px;
+}
+.score-decision {
+  margin-top: 8px;
+  padding: 4px 12px;
+  border-radius: 12px;
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* Reason list */
+.reason-list {
+  list-style: none;
+  font-size: 12px;
+}
+.reason-list li {
+  padding: 3px 0;
+  border-bottom: 1px solid #0f3460;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.reason-list li:last-child { border: none; }
+.reason-list .bullet {
+  width: 6px; height: 6px; border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* Detection details */
+.detail-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px 12px;
+  font-size: 12px;
+}
+.detail-grid .label { color: #888; }
+.detail-grid .value { color: #e0e0e0; text-align: right; font-family: 'Courier New', monospace; }
+
+/* Zone bars */
+.zone-bar-container { margin-top: 4px; }
+.zone-bar-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 3px;
+  font-size: 11px;
+}
+.zone-bar-label { width: 70px; color: #888; text-align: right; }
+.zone-bar-track {
+  flex: 1;
+  height: 12px;
+  background: #0f3460;
+  border-radius: 4px;
+  overflow: hidden;
+}
+.zone-bar-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.3s;
+}
+.zone-bar-value { width: 40px; font-family: monospace; }
+
+/* Processing indicator */
+.processing {
+  display: none;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: rgba(240, 165, 0, 0.1);
+  border: 1px solid #f0a500;
+  border-radius: 8px;
+  font-size: 13px;
+  color: #f0a500;
+}
+.processing.active { display: flex; }
+.spinner {
+  width: 16px; height: 16px;
+  border: 2px solid #f0a500;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* === Video Filmstrip === */
+.filmstrip-thumb {
+  flex-shrink: 0;
+  width: 120px;
+  cursor: pointer;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 2px solid transparent;
+  transition: border-color 0.2s, transform 0.15s;
+  background: #111;
+}
+.filmstrip-thumb:hover { border-color: #e94560; transform: scale(1.05); }
+.filmstrip-thumb.active { border-color: #e94560; box-shadow: 0 0 8px rgba(233,69,96,0.5); }
+.filmstrip-thumb canvas { width: 100%; display: block; }
+.filmstrip-thumb .thumb-info {
+  padding: 3px 6px;
+  font-size: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #0a0a1a;
+}
+.filmstrip-thumb .thumb-time { color: #aaa; }
+.filmstrip-thumb .thumb-score {
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-size: 10px;
+}
+.score-green { background: #1b5e20; color: #81c784; }
+.score-yellow { background: #4a3800; color: #ffd54f; }
+.score-orange { background: #4a2000; color: #ffb74d; }
+.score-red { background: #4a0000; color: #ef5350; }
+.score-black { background: #000; color: #fff; }
+
+/* === Phase 2: Live Adjustment === */
+.main.comparison-mode .canvas-panel {
+  display: flex;
+  flex-direction: column;
+}
+.comparison-wrapper {
+  display: none;
+  flex: 1;
+  gap: 8px;
+  min-height: 300px;
+}
+.main.comparison-mode .comparison-wrapper { display: flex; }
+.main.comparison-mode #canvasContainer { display: none; }
+.comparison-side {
+  flex: 1;
+  position: relative;
+  background: #111;
+  border-radius: 8px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.comparison-side canvas {
+  max-width: 100%;
+  max-height: 100%;
+}
+.comparison-canvas-wrap {
+  position: relative;
+  display: inline-block;
+  line-height: 0;
+}
+.comparison-label {
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0,0,0,0.75);
+  color: #e0e0e0;
+  padding: 3px 12px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 600;
+  z-index: 10;
+  pointer-events: none;
+}
+.comparison-label.original { border: 1px solid #4CAF50; color: #4CAF50; }
+.comparison-label.adjusted { border: 1px solid #e94560; color: #e94560; }
+.comparison-score {
+  position: absolute;
+  bottom: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 28px;
+  font-weight: 700;
+  z-index: 10;
+  pointer-events: none;
+  text-shadow: 0 0 8px rgba(0,0,0,0.9);
+}
+
+/* Slider sections */
+.slider-group {
+  background: #1a1a2e;
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 4px;
+  flex-shrink: 0;
+}
+.slider-group-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  cursor: pointer;
+  user-select: none;
+  background: #1a1a2e;
+  border-bottom: 1px solid transparent;
+  transition: background 0.15s;
+}
+.slider-group-header:hover { background: #222244; }
+.slider-group-header h3 {
+  font-size: 12px;
+  color: #e94560;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin: 0;
+}
+.slider-group-header .chevron {
+  color: #888;
+  font-size: 10px;
+  transition: transform 0.2s;
+}
+.slider-group.open .slider-group-header { border-bottom-color: #0f3460; }
+.slider-group.open .chevron { transform: rotate(180deg); }
+.slider-group-body {
+  display: none;
+  padding: 8px 12px 12px;
+}
+.slider-group.open .slider-group-body { display: block; }
+
+.slider-row {
+  margin-bottom: 6px;
+}
+.slider-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  margin-bottom: 2px;
+}
+.slider-label .name { color: #aaa; }
+.slider-label .val { color: #e0e0e0; font-family: 'Courier New', monospace; min-width: 40px; text-align: right; }
+.slider-row input[type="range"] {
+  width: 100%;
+  height: 4px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: #0f3460;
+  border-radius: 2px;
+  outline: none;
+}
+.slider-row input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #e94560;
+  cursor: pointer;
+}
+.slider-row input[type="range"].modified::-webkit-slider-thumb {
+  background: #f0a500;
+  box-shadow: 0 0 4px rgba(240,165,0,0.5);
+}
+
+/* Comparison toggle + Export */
+.phase2-toolbar {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.phase2-btn {
+  padding: 6px 12px;
+  border: 1px solid #0f3460;
+  border-radius: 6px;
+  background: #1a1a2e;
+  color: #e0e0e0;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.phase2-btn:hover { background: #222244; border-color: #e94560; }
+.phase2-btn.active { background: #e94560; color: #fff; border-color: #e94560; }
+.phase2-btn.export-btn { border-color: #4CAF50; color: #4CAF50; }
+.phase2-btn.export-btn:hover { background: #4CAF50; color: #fff; }
+.phase2-btn.reset-btn { border-color: #f0a500; color: #f0a500; }
+.phase2-btn.reset-btn:hover { background: #f0a500; color: #fff; }
+
+/* Export modal */
+.export-modal {
+  display: none;
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.7);
+  z-index: 1000;
+  align-items: center;
+  justify-content: center;
+}
+.export-modal.visible { display: flex; }
+.export-modal-content {
+  background: #16213e;
+  border: 1px solid #0f3460;
+  border-radius: 12px;
+  padding: 20px;
+  max-width: 600px;
+  width: 90%;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+.export-modal-content h3 { color: #e94560; margin-bottom: 12px; }
+.export-modal-content textarea {
+  width: 100%;
+  height: 300px;
+  background: #1a1a2e;
+  color: #e0e0e0;
+  border: 1px solid #0f3460;
+  border-radius: 6px;
+  padding: 12px;
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+  resize: vertical;
+}
+.export-modal-content .modal-buttons {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+  justify-content: flex-end;
+}
+
+/* === Phase 3: Gallery & Testing === */
+.phase2-btn.gallery-btn { border-color: #9c27b0; color: #9c27b0; }
+.phase2-btn.gallery-btn:hover, .phase2-btn.gallery-btn.active { background: #9c27b0; color: #fff; border-color: #9c27b0; }
+.phase2-btn.import-btn { border-color: #2196F3; color: #2196F3; }
+.phase2-btn.import-btn:hover { background: #2196F3; color: #fff; }
+.phase2-btn.runall-btn { border-color: #ff5722; color: #ff5722; }
+.phase2-btn.runall-btn:hover { background: #ff5722; color: #fff; }
+
+.save-form {
+  display: none;
+  background: #16213e;
+  border: 1px solid #0f3460;
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 8px;
+}
+.save-form.visible { display: block; }
+.save-form h4 { font-size: 12px; color: #9c27b0; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+.save-form label { font-size: 11px; color: #aaa; display: block; margin-bottom: 2px; margin-top: 6px; }
+.save-form select, .save-form input, .save-form textarea {
+  width: 100%;
+  background: #1a1a2e;
+  color: #e0e0e0;
+  border: 1px solid #0f3460;
+  border-radius: 4px;
+  padding: 5px 8px;
+  font-size: 12px;
+  font-family: inherit;
+}
+.save-form textarea { height: 50px; resize: vertical; }
+.save-form .score-range-row { display: flex; gap: 8px; align-items: center; }
+.save-form .score-range-row input { width: 70px; text-align: center; }
+.save-form .score-range-row span { color: #888; font-size: 11px; }
+.save-form .save-form-buttons { display: flex; gap: 6px; margin-top: 8px; }
+.save-form .save-form-buttons button {
+  padding: 5px 14px;
+  border-radius: 4px;
+  border: 1px solid #0f3460;
+  background: #1a1a2e;
+  color: #e0e0e0;
+  font-size: 11px;
+  cursor: pointer;
+}
+.save-form .btn-save-confirm { border-color: #9c27b0; color: #9c27b0; }
+.save-form .btn-save-confirm:hover { background: #9c27b0; color: #fff; }
+.save-form .btn-save-cancel:hover { background: #333; }
+
+.gallery-panel {
+  display: none;
+  flex: 1;
+  flex-direction: column;
+  padding: 16px;
+  overflow-y: auto;
+}
+.gallery-panel.visible { display: flex; }
+.gallery-panel .gallery-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  flex-shrink: 0;
+}
+.gallery-panel .gallery-header h2 { font-size: 16px; color: #9c27b0; }
+.gallery-panel .gallery-stats { font-size: 12px; color: #888; }
+
+.gallery-category { margin-bottom: 16px; }
+.gallery-category-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  border-bottom: 1px solid #0f3460;
+  margin-bottom: 8px;
+  cursor: pointer;
+  user-select: none;
+}
+.gallery-category-header h3 { font-size: 13px; color: #e94560; flex: 1; }
+.gallery-category-header .cat-count { font-size: 11px; color: #888; }
+.gallery-category-header .cat-chevron { color: #888; font-size: 10px; transition: transform 0.2s; }
+.gallery-category.collapsed .cat-chevron { transform: rotate(-90deg); }
+.gallery-category.collapsed .gallery-grid { display: none; }
+
+.gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 8px;
+}
+.gallery-thumb {
+  position: relative;
+  background: #111;
+  border-radius: 6px;
+  overflow: hidden;
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: border-color 0.15s, transform 0.1s;
+}
+.gallery-thumb:hover { border-color: #9c27b0; transform: scale(1.02); }
+.gallery-thumb img {
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+  display: block;
+}
+.gallery-thumb .thumb-info {
+  padding: 4px 6px;
+  font-size: 10px;
+  background: rgba(0,0,0,0.7);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.gallery-thumb .thumb-score { font-weight: 700; font-family: monospace; }
+.gallery-thumb .thumb-range { color: #888; font-family: monospace; }
+.gallery-thumb .thumb-delete {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: rgba(233,69,96,0.8);
+  color: #fff;
+  border: none;
+  font-size: 12px;
+  cursor: pointer;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+.gallery-thumb:hover .thumb-delete { display: flex; }
+.gallery-thumb .thumb-pass { background: rgba(76,175,80,0.15); }
+.gallery-thumb .thumb-fail { background: rgba(233,69,96,0.15); }
+.gallery-thumb .thumb-untested { background: rgba(136,136,136,0.1); }
+
+.custom-category-row { display: none; gap: 6px; align-items: center; margin-top: 4px; }
+.custom-category-row.visible { display: flex; }
+.custom-category-row input { flex: 1; }
+
+.batch-modal {
+  display: none;
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.8);
+  z-index: 1000;
+  align-items: center;
+  justify-content: center;
+}
+.batch-modal.visible { display: flex; }
+.batch-modal-content {
+  background: #16213e;
+  border: 1px solid #0f3460;
+  border-radius: 12px;
+  padding: 20px;
+  max-width: 900px;
+  width: 95%;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+}
+.batch-modal-content h3 { color: #ff5722; margin-bottom: 4px; }
+.batch-progress { margin: 8px 0; flex-shrink: 0; }
+.batch-progress-bar { height: 6px; background: #0f3460; border-radius: 3px; overflow: hidden; }
+.batch-progress-fill { height: 100%; background: #ff5722; border-radius: 3px; transition: width 0.2s; width: 0%; }
+.batch-progress-text { font-size: 11px; color: #888; margin-top: 4px; display: flex; justify-content: space-between; }
+.batch-summary { display: flex; gap: 16px; margin: 8px 0; font-size: 13px; flex-shrink: 0; }
+.batch-summary .stat-pass { color: #4CAF50; }
+.batch-summary .stat-fail { color: #e94560; }
+.batch-summary .stat-untested { color: #888; }
+.batch-results-table { flex: 1; overflow-y: auto; margin-top: 8px; }
+.batch-results-table table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.batch-results-table th {
+  text-align: left;
+  padding: 6px 8px;
+  background: #1a1a2e;
+  color: #888;
+  text-transform: uppercase;
+  font-size: 10px;
+  letter-spacing: 0.5px;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+.batch-results-table td { padding: 5px 8px; border-bottom: 1px solid #0f3460; vertical-align: middle; }
+.batch-results-table tr:hover { background: rgba(255,255,255,0.03); }
+.batch-results-table .result-thumb { width: 40px; height: 40px; object-fit: cover; border-radius: 4px; }
+.batch-results-table .result-pass { color: #4CAF50; font-weight: 600; }
+.batch-results-table .result-fail { color: #e94560; font-weight: 600; }
+.batch-results-table .result-score { font-family: monospace; font-weight: 700; }
+.batch-modal .modal-buttons { display: flex; gap: 8px; margin-top: 12px; justify-content: flex-end; flex-shrink: 0; }
+
+.gallery-empty { text-align: center; padding: 60px 20px; color: #555; }
+.gallery-empty p { font-size: 14px; margin-bottom: 8px; }
+.gallery-empty .hint { font-size: 12px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>SafeScroll Workbench</h1>
+  <span class="subtitle">Detection Pipeline Visualizer</span>
+  <div class="model-status">
+    <div class="model-item"><span class="dot" id="dot-tf"></span> TF.js</div>
+    <div class="model-item"><span class="dot" id="dot-coco"></span> COCO-SSD</div>
+    <div class="model-item"><span class="dot" id="dot-face"></span> BlazeFace</div>
+    <div class="model-item"><span class="dot" id="dot-pose"></span> BlazePose</div>
+    <div class="model-item"><span class="dot" id="dot-mobilenet"></span> MobileNet</div>
+  </div>
+</div>
+
+<div class="main">
+  <!-- Left: Image + Canvas -->
+  <div class="canvas-panel">
+    <div class="drop-zone" id="dropZone">
+      <p>Drop an image or video here, or click to browse</p>
+      <p class="hint">You can also paste from clipboard (Ctrl+V)</p>
+      <input type="file" id="fileInput" accept="image/*,video/*" style="display:none">
+    </div>
+    <!-- Video player (hidden until a video is loaded) -->
+    <div id="videoPlayerWrap" style="display:none; margin-bottom:12px;">
+      <video id="workbenchVideo" controls style="max-width:100%; max-height:40vh; border-radius:8px; background:#000;"></video>
+      <div id="videoControls" style="display:flex; align-items:center; gap:10px; margin-top:8px;">
+        </div>
+      <div class="toggle-row">
+        <input type="checkbox" id="layer-pose" checked>
+        <span class="color-swatch" style="background:#ff6ec7"></span>
+        </div>
+      <div class="toggle-row">
+        <input type="checkbox" id="inst-skin-ycrcb" checked>
+        </div>
+    </div>
+
+    <!-- Score -->
+    <div class="panel-section" id="scoreSection" style="display:none">
+      <h3>Final Score</h3>
+      <div class="score-display">
+        <div class="score-number" id="scoreNumber">--</div>
+        <div class="score-label">Visual Risk Score</div>
+        <div class="score-decision" id="scoreDecision"></div>
+      </div>
+    </div>
+
+    <!-- Reasons -->
+    <div class="panel-section" id="reasonsSection" style="display:none">
+      <h3>Detection Reasons</h3>
+      <ul class="reason-list" id="reasonList"></ul>
+    </div>
+
+    <!-- Detection details -->
+    <div class="panel-section" id="detailsSection" style="display:none">
+      <h3>Pipeline Details</h3>
+      <div class="detail-grid" id="detailGrid"></div>
+    </div>
+
+    <!-- Body zones -->
+    <div class="panel-section" id="zonesSection" style="display:none">
+      <h3>Body Zone Skin %</h3>
+      <div class="zone-bar-container" id="zoneBars"></div>
+    </div>
+
+    <!-- Scene context -->
+    <div class="panel-section" id="sceneSection" style="display:none">
+      <h3>Scene Context</h3>
+      <div id="sceneInfo" style="font-size:12px"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Export modal -->
+<div class="export-modal" id="exportModal">
+  <div class="export-modal-content">
+    <h3>Export Adjusted Config</h3>
+    <p style="font-size:12px;color:#888;margin-bottom:8px">Copy this config object — only changed values are shown.</p>
+    <textarea id="exportText" readonly></textarea>
+    <div class="modal-buttons">
+      <button class="phase2-btn" id="btnCopyExport">Copy to Clipboard</button>
+      <button class="phase2-btn" id="btnCloseExport">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- TF.js from CDN -->
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.17.0/dist/tf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.3/dist/coco-ssd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/blazeface@0.0.7/dist/blazeface.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/pose-detection@2.1.3/dist/pose-detection.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet@2.1.1/dist/mobilenet.min.js"></script>
+
+<script>
+// ============================================================
+// SafeScroll Detection Workbench - Phase 1
+// Full detection pipeline with visual overlays
+// ============================================================
+
+// === MODEL STATE ===
+let cocoModel = null;
+let faceModel = null;
+let poseDetector = null;
+let mobilenetModel = null;
+
+// === ANALYSIS RESULTS (stored for overlay redrawing) ===
+let currentImage = null;       // The loaded HTMLImageElement
+let currentResults = null;     // Full analysis results object
+let analysisCanvas = null;     // 299x299 analysis canvas data
+let overlayData = {
+  cocoPredictions: [],
+  faces: [],
+  poseKeypoints: [],
+  skinMap: null,
+  exclusionMask: null,
+  bboxMask: null,
+  bodyZones: null,
+  personBboxes: [],
+  imageWidth: 0,
+  imageHeight: 0,
+  analysisWidth: 299,
+  analysisHeight: 299
+};
+
+// === INITIALIZE MODELS ===
+async function initModels() {
+  // TF.js
+  setModelStatus('tf', 'loading');
+  try {
+    await tf.ready();
+    setModelStatus('tf', 'ready');
+  } catch (e) {
+    setModelStatus('tf', 'error');
+    console.error('TF.js failed:', e);
+    return;
+  }
+
+  // COCO-SSD
+  setModelStatus('coco', 'loading');
+  try {
+    cocoModel = await cocoSsd.load({ base: 'lite_mobilenet_v2' });
+    setModelStatus('coco', 'ready');
+  } catch (e) {
+    setModelStatus('coco', 'error');
+    console.error('COCO-SSD failed:', e);
+  }
+
+  // BlazeFace
+  setModelStatus('face', 'loading');
+  try {
+    faceModel = await blazeface.load();
+    setModelStatus('face', 'ready');
+  } catch (e) {
+    setModelStatus('face', 'error');
+    console.error('BlazeFace failed:', e);
+  }
+
+  // BlazePose
+  setModelStatus('pose', 'loading');
+  try {
+    poseDetector = await poseDetection.createDetector(
+      poseDetection.SupportedModels.BlazePose,
+      { runtime: 'tfjs', modelType: 'lite', enableSmoothing: false }
+    );
+    setModelStatus('pose', 'ready');
+  } catch (e) {
+    setModelStatus('pose', 'error');
+    console.error('BlazePose failed:', e);
+  }
+
+  // MobileNet (clothing classification)
+  setModelStatus('mobilenet', 'loading');
+  try {
+    mobilenetModel = await mobilenet.load({ version: 2, alpha: 1.0 });
+    setModelStatus('mobilenet', 'ready');
+  } catch (e) {
+    setModelStatus('mobilenet', 'error');
+    console.error('MobileNet failed:', e);
+  }
+}
+
+function setModelStatus(model, status) {
+  const dot = document.getElementById('dot-' + model);
+  if (dot) {
+    dot.className = 'dot ' + status;
+  }
+}
+
+// === FILE LOADING (Images + Videos) ===
+function setupImageInput() {
+  const dropZone = document.getElementById('dropZone');
+  const fileInput = document.getElementById('fileInput');
+
+  dropZone.addEventListener('click', () => fileInput.click());
+  dropZone.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    dropZone.classList.add('dragover');
+  });
+  dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+  dropZone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dropZone.classList.remove('dragover');
+    if (e.dataTransfer.files.length > 0) {
+      handleFileInput(e.dataTransfer.files[0]);
+    }
+  });
+  fileInput.addEventListener('change', (e) => {
+    if (e.target.files.length > 0) handleFileInput(e.target.files[0]);
+  });
+
+  // Paste from clipboard (images only — videos can't be pasted)
+  document.addEventListener('paste', (e) => {
+    const items = e.clipboardData.items;
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].type.startsWith('image/')) {
+        handleFileInput(items[i].getAsFile());
+        break;
+      }
+    }
+  });
+
+  // Video control buttons
+  document.getElementById('btnAnalyzeVideo').addEventListener('click', startVideoAnalysis);
+  document.getElementById('btnStopVideoAnalysis').addEventListener('click', stopVideoAnalysis);
+}
+
+// Route file to image or video handler
+function handleFileInput(file) {
+  if (file.type.startsWith('video/')) {
+    loadVideoFile(file);
+  } else if (file.type.startsWith('image/')) {
+    // Hide video UI, show image UI
+    document.getElementById('videoPlayerWrap').style.display = 'none';
+    document.getElementById('videoFilmstrip').style.display = 'none';
+    videoAnalysisRunning = false;
+    loadImageFile(file);
+  }
+}
+
+function loadImageFile(file) {
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const img = new Image();
+    img.onload = () => {
+      currentImage = img;
+      displayImage(img);
+      analyzeImage(img);
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+// === VIDEO HANDLING ===
+let videoAnalysisRunning = false;
+let videoAnalysisCancelled = false;
+let videoFrameResults = []; // Array of { time, score, action, imageData, analysisResult, overlaySnapshot }
+
+function loadVideoFile(file) {
+  const video = document.getElementById('workbenchVideo');
+  const videoWrap = document.getElementById('videoPlayerWrap');
+  const filmstrip = document.getElementById('videoFilmstrip');
+
+  // Clean up previous
+  if (video.src) URL.revokeObjectURL(video.src);
+  videoFrameResults = [];
+  videoAnalysisRunning = false;
+  videoAnalysisCancelled = false;
+
+  // Show video UI, hide drop zone visual cue
+  videoWrap.style.display = 'block';
+  filmstrip.style.display = 'none';
+  document.getElementById('filmstripThumbs').innerHTML = '';
+  document.getElementById('scoreTimeline').innerHTML = '';
+  document.getElementById('filmstripInfo').textContent = '';
+  document.getElementById('videoAnalysisStatus').textContent = '';
+  document.getElementById('btnAnalyzeVideo').style.display = '';
+  document.getElementById('btnStopVideoAnalysis').style.display = 'none';
+
+  // Load video
+  video.src = URL.createObjectURL(file);
+  video.load();
+
+  // Clear the main canvas area
+  const baseCanvas = document.getElementById('baseCanvas');
+  const overlayCanvas = document.getElementById('overlayCanvas');
+  baseCanvas.style.display = 'none';
+  overlayCanvas.style.display = 'none';
+  document.getElementById('placeholder-text').style.display = '';
+  document.getElementById('placeholder-text').textContent = 'Click "Analyze Frames" to start';
+}
+
+async function startVideoAnalysis() {
+  const video = document.getElementById('workbenchVideo');
+  if (!video.src || video.readyState < 1) {
+    alert('No video loaded yet. Drop a video file first.');
+    return;
+  }
+
+  const interval = parseInt(document.getElementById('videoInterval').value);
+  const duration = video.duration;
+  if (!duration || !isFinite(duration)) {
+    alert('Cannot read video duration. Try a different file.');
+    return;
+  }
+
+  // Reset state
+  videoFrameResults = [];
+  videoAnalysisCancelled = false;
+  videoAnalysisRunning = true;
+
+  // UI updates
+  document.getElementById('btnAnalyzeVideo').style.display = 'none';
+  document.getElementById('btnStopVideoAnalysis').style.display = '';
+  document.getElementById('videoFilmstrip').style.display = 'block';
+  document.getElementById('filmstripThumbs').innerHTML = '';
+  document.getElementById('scoreTimeline').innerHTML = '';
+
+  const totalFrames = Math.floor(duration / interval) + 1;
+  document.getElementById('videoAnalysisStatus').textContent = `0 / ${totalFrames} frames...`;
+
+  // Pause video playback during analysis
+  video.pause();
+
+  // Sample frames
+  for (let t = 0; t <= duration; t += interval) {
+    if (videoAnalysisCancelled) break;
+
+    // Seek to time
+    video.currentTime = t;
+    await new Promise(resolve => {
+      video.onseeked = resolve;
+      // Safety timeout in case onseeked doesn't fire
+      setTimeout(resolve, 2000);
+    });
+
+    // Small delay to ensure frame is rendered
+    await new Promise(r => setTimeout(r, 100));
+
+    // Capture frame to canvas
+    const frameCanvas = document.createElement('canvas');
+    frameCanvas.width = video.videoWidth;
+    frameCanvas.height = video.videoHeight;
+    frameCanvas.getContext('2d').drawImage(video, 0, 0);
+
+    // Create an Image from the frame for the analysis pipeline
+    const frameDataURL = frameCanvas.toDataURL('image/jpeg', 0.9);
+    const frameImg = new Image();
+    await new Promise(resolve => {
+      frameImg.onload = resolve;
+      frameImg.src = frameDataURL;
+    });
+
+    // Update status
+    const frameIndex = videoFrameResults.length;
+    document.getElementById('videoAnalysisStatus').textContent =
+      `${frameIndex + 1} / ${totalFrames} frames — analyzing ${formatTime(t)}...`;
+
+    // Run the full detection pipeline on this frame (same as image analysis)
+    const result = await analyzeVideoFrame(frameImg);
+
+    // Store result
+    const frameData = {
+      time: t,
+      score: result.score,
+      action: result.action,
+      imageDataURL: frameDataURL,
+      analysisResult: result.fullResult,
+      overlaySnapshot: result.overlaySnapshot,
+      image: frameImg
+    };
+    videoFrameResults.push(frameData);
+
+    // Add thumbnail to filmstrip
+    addFilmstripThumb(frameData, frameIndex);
+
+    // Update timeline
+    updateScoreTimeline();
+  }
+
+  // Done
+  videoAnalysisRunning = false;
+  document.getElementById('btnAnalyzeVideo').style.display = '';
+  document.getElementById('btnStopVideoAnalysis').style.display = 'none';
+
+  const peakFrame = videoFrameResults.reduce((max, f) => f.score > max.score ? f : max, { score: -1 });
+  document.getElementById('videoAnalysisStatus').textContent =
+    `Done — ${videoFrameResults.length} frames analyzed. Peak: ${peakFrame.score}% at ${formatTime(peakFrame.time)}`;
+  document.getElementById('filmstripInfo').textContent =
+    `${videoFrameResults.length} frames | Peak ${peakFrame.score}% at ${formatTime(peakFrame.time)}`;
+}
+
+function stopVideoAnalysis() {
+  videoAnalysisCancelled = true;
+  document.getElementById('videoAnalysisStatus').textContent = 'Stopping...';
+}
+
+// Run the full pipeline on a single video frame (reuses the image analysis code)
+async function analyzeVideoFrame(img) {
+  // Same pipeline as analyzeImage but returns data instead of updating UI
+  let cocoPredictions = [];
+  let personBboxes = null;
+  let sceneObjects = null;
+  let personCount = 0;
+
+  if (cocoModel) {
+    const detCanvas = document.createElement('canvas');
+    const detScale = Math.min(300 / img.naturalWidth, 300 / img.naturalHeight, 1);
+    detCanvas.width = Math.round(img.naturalWidth * detScale);
+    detCanvas.height = Math.round(img.naturalHeight * detScale);
+    detCanvas.getContext('2d').drawImage(img, 0, 0, detCanvas.width, detCanvas.height);
+
+    cocoPredictions = await cocoModel.detect(detCanvas, 20, 0.3);
+    const people = cocoPredictions.filter(p => p.class === 'person');
+    personCount = people.length;
+
+    if (people.length > 0) {
+      personBboxes = {
+        boxes: people.map(p => p.bbox),
+        sourceWidth: detCanvas.width,
+        sourceHeight: detCanvas.height
+      };
+    }
+    sceneObjects = cocoPredictions
+      .filter(d => d.class !== 'person')
+      .map(d => ({ class: d.class, score: d.score }));
+  }
+
+  // BlazeFace
+  let faceData = null;
+  if (faceModel) {
+    const faceCanvas = document.createElement('canvas');
+    const fScale = Math.min(300 / img.naturalWidth, 300 / img.naturalHeight, 1);
+    faceCanvas.width = Math.round(img.naturalWidth * fScale);
+    faceCanvas.height = Math.round(img.naturalHeight * fScale);
+    faceCanvas.getContext('2d').drawImage(img, 0, 0, faceCanvas.width, faceCanvas.height);
+    const faceDetections = await faceModel.estimateFaces(faceCanvas, false);
+    if (faceDetections.length > 0) {
+      faceData = {
+        faces: faceDetections.map(f => ({
+          topLeft: [f.topLeft[0], f.topLeft[1]],
+          bottomRight: [f.bottomRight[0], f.bottomRight[1]],
+          width: f.bottomRight[0] - f.topLeft[0],
+          height: f.bottomRight[1] - f.topLeft[1],
+          probability: f.probability ? f.probability[0] : 0
+        })),
+        imageWidth: faceCanvas.width,
+        imageHeight: faceCanvas.height
+      };
+    }
+  }
+
+  // BlazePose
+  let poseData = null;
+  if (poseDetector && personCount > 0) {
+    const poseCanvas = document.createElement('canvas');
+    const pScale = Math.min(300 / img.naturalWidth, 300 / img.naturalHeight, 1);
+    poseCanvas.width = Math.round(img.naturalWidth * pScale);
+    poseCanvas.height = Math.round(img.naturalHeight * pScale);
+    poseCanvas.getContext('2d').drawImage(img, 0, 0, poseCanvas.width, poseCanvas.height);
+    const poses = await poseDetector.estimatePoses(poseCanvas);
+    if (poses && poses.length > 0) {
+      poseData = {
+        score: poses[0].score,
+        keypoints: poses[0].keypoints.map(kp => ({
+          name: kp.name, x: kp.x, y: kp.y, score: kp.score
+        })),
+        imageWidth: poseCanvas.width,
+        imageHeight: poseCanvas.height
+      };
+    }
+  }
+
+  // MobileNet clothing classification
+  let clothingData = [];
+  if (mobilenetModel && personCount > 0 && personBboxes) {
+    const detScale = Math.min(300 / img.naturalWidth, 300 / img.naturalHeight, 1);
+    for (let pi = 0; pi < personBboxes.boxes.length; pi++) {
+      const bbox = personBboxes.boxes[pi];
+      // Scale bbox from detection coords back to natural image coords
+      const bx = Math.max(0, Math.floor(bbox[0] / detScale));
+      const by = Math.max(0, Math.floor(bbox[1] / detScale));
+      let bw = Math.floor(bbox[2] / detScale);
+      let bh = Math.floor(bbox[3] / detScale);
+      if (bx + bw > img.naturalWidth) bw = img.naturalWidth - bx;
+      if (by + bh > img.naturalHeight) bh = img.naturalHeight - by;
+      if (bw < 10 || bh < 10) continue;
+
+      const cropCanvas = document.createElement('canvas');
+      cropCanvas.width = bw;
+      cropCanvas.height = bh;
+      cropCanvas.getContext('2d').drawImage(img, bx, by, bw, bh, 0, 0, bw, bh);
+      const preds = await mobilenetModel.classify(cropCanvas, 10);
+      clothingData.push({
+        personIndex: pi,
+        bbox: [bx, by, bw, bh],
+        predictions: preds.map(p => ({ className: p.className, probability: p.probability }))
+      });
+    }
+  }
+
+
+  // Run detector scoring
+  const detector = new SafeScrollDetectorWorkbench();
+  const result = await detector.analyzeImageFull(img, personBboxes, sceneObjects, personCount, faceData, poseData, clothingData);
+
+  const score = result.score || 0;
+  let action = 'safe';
+  if (score >= (result.thresholds?.block || 80)) action = 'block';
+  else if (score >= (result.thresholds?.blur || 45)) action = 'blur';
+
+  return {
+    score,
+    action,
+    fullResult: result,
+    overlaySnapshot: {
+      cocoPredictions,
+      faces: faceData ? faceData.faces : [],
+      poseKeypoints: poseData ? poseData.keypoints : [],
+      skinMap: result._overlayData?.skinMap,
+      exclusionMask: result._overlayData?.exclusionMask,
+      bboxMask: result._overlayData?.bboxMask,
+      bodyZones: result._overlayData?.bodyZones,
+      clothingOverride: result._overlayData?.clothingOverride || null,
+      personBboxes: personBboxes ? cocoPredictions.filter(p => p.class === 'person').map(p => ({
+        bbox: p.bbox, score: p.score,
+        sourceWidth: personBboxes.sourceWidth, sourceHeight: personBboxes.sourceHeight
+      })) : []
+    }
+  };
+}
+
+// Add a thumbnail to the filmstrip
+function addFilmstripThumb(frameData, index) {
+  const container = document.getElementById('filmstripThumbs');
+
+  const thumb = document.createElement('div');
+  thumb.className = 'filmstrip-thumb';
+  thumb.dataset.index = index;
+
+  // Thumbnail canvas (small version of the frame)
+  const thumbCanvas = document.createElement('canvas');
+  const aspect = frameData.image.naturalHeight / frameData.image.naturalWidth;
+  thumbCanvas.width = 120;
+  thumbCanvas.height = Math.round(120 * aspect);
+  thumbCanvas.getContext('2d').drawImage(frameData.image, 0, 0, thumbCanvas.width, thumbCanvas.height);
+
+  // Info bar
+  const info = document.createElement('div');
+  info.className = 'thumb-info';
+
+  const timeSpan = document.createElement('span');
+  timeSpan.className = 'thumb-time';
+  timeSpan.textContent = formatTime(frameData.time);
+
+  const scoreSpan = document.createElement('span');
+  scoreSpan.className = 'thumb-score ' + getScoreColorClass(frameData.score);
+  scoreSpan.textContent = frameData.score + '%';
+
+  info.appendChild(timeSpan);
+  info.appendChild(scoreSpan);
+  thumb.appendChild(thumbCanvas);
+  thumb.appendChild(info);
+
+  // Click to load this frame into the main canvas
+  thumb.addEventListener('click', () => {
+    loadVideoFrameToCanvas(index);
+    // Highlight active thumb
+    container.querySelectorAll('.filmstrip-thumb').forEach(t => t.classList.remove('active'));
+    thumb.classList.add('active');
+  });
+
+  container.appendChild(thumb);
+}
+
+// Load a specific video frame into the main canvas with full overlays
+function loadVideoFrameToCanvas(index) {
+  const frame = videoFrameResults[index];
+  if (!frame) return;
+
+  // Load the frame image into the main display (same as displayImage)
+  currentImage = frame.image;
+  displayImage(frame.image);
+
+  // Restore the overlay data from this frame's snapshot
+  overlayData.cocoPredictions = frame.overlaySnapshot.cocoPredictions;
+  overlayData.faces = frame.overlaySnapshot.faces;
+  overlayData.poseKeypoints = frame.overlaySnapshot.poseKeypoints;
+  overlayData.skinMap = frame.overlaySnapshot.skinMap;
+  overlayData.exclusionMask = frame.overlaySnapshot.exclusionMask;
+  overlayData.bboxMask = frame.overlaySnapshot.bboxMask;
+  overlayData.bodyZones = frame.overlaySnapshot.bodyZones;
+  overlayData.personBboxes = frame.overlaySnapshot.personBboxes;
+
+  // Redraw overlays
+  drawOverlays();
+
+  // Show results in the right panel
+  currentResults = frame.analysisResult;
+  showResults(frame.analysisResult);
+
+  // Seek video to this time too
+  const video = document.getElementById('workbenchVideo');
+  if (video.src) video.currentTime = frame.time;
+}
+
+// Update the score timeline bar
+function updateScoreTimeline() {
+  const container = document.getElementById('scoreTimeline');
+  container.innerHTML = '';
+
+  if (videoFrameResults.length === 0) return;
+
+  const maxTime = videoFrameResults[videoFrameResults.length - 1].time;
+  const totalWidth = container.offsetWidth;
+
+  for (let i = 0; i < videoFrameResults.length; i++) {
+    const frame = videoFrameResults[i];
+    const bar = document.createElement('div');
+    const barWidth = Math.max(totalWidth / (videoFrameResults.length + 2), 4);
+    const left = maxTime > 0 ? (frame.time / maxTime) * (totalWidth - barWidth) : 0;
+    const height = Math.max(4, (frame.score / 100) * 28);
+
+    bar.style.cssText = `
+      position:absolute;
+      bottom:1px;
+      left:${left}px;
+      width:${barWidth}px;
+      height:${height}px;
+      background:${getScoreColor(frame.score)};
+      border-radius:2px 2px 0 0;
+      cursor:pointer;
+      transition:opacity 0.15s;
+    `;
+    bar.title = `${formatTime(frame.time)} — ${frame.score}%`;
+    bar.addEventListener('click', () => {
+      loadVideoFrameToCanvas(i);
+      document.querySelectorAll('.filmstrip-thumb').forEach(t => t.classList.remove('active'));
+      const thumbEl = document.querySelector(`.filmstrip-thumb[data-index="${i}"]`);
+      if (thumbEl) {
+        thumbEl.classList.add('active');
+        thumbEl.scrollIntoView({ behavior: 'smooth', inline: 'center' });
+      }
+    });
+    container.appendChild(bar);
+  }
+}
+
+// Helper: format seconds as MM:SS
+function formatTime(seconds) {
+  const m = Math.floor(seconds / 60);
+  const s = Math.floor(seconds % 60);
+  return m + ':' + String(s).padStart(2, '0');
+}
+
+// Helper: get CSS class for score color
+function getScoreColorClass(score) {
+  if (score >= 80) return 'score-black';
+  if (score >= 60) return 'score-red';
+  if (score >= 45) return 'score-orange';
+  if (score >= 20) return 'score-yellow';
+  return 'score-green';
+}
+
+// Helper: get color for score timeline bars
+function getScoreColor(score) {
+  if (score >= 80) return '#111';
+  if (score >= 60) return '#e94560';
+  if (score >= 45) return '#ff9800';
+  if (score >= 20) return '#ffd54f';
+  return '#4CAF50';
+}
+
+function displayImage(img) {
+  const container = document.getElementById('canvasContainer');
+  const baseCanvas = document.getElementById('baseCanvas');
+  const overlayCanvas = document.getElementById('overlayCanvas');
+  const placeholder = document.getElementById('placeholder-text');
+
+  placeholder.style.display = 'none';
+  baseCanvas.style.display = 'block';
+  overlayCanvas.style.display = 'block';
+
+  // Size canvases to fit container while maintaining aspect ratio
+  const containerRect = container.getBoundingClientRect();
+  const maxW = containerRect.width - 20;
+  const maxH = containerRect.height - 20;
+  const scale = Math.min(maxW / img.naturalWidth, maxH / img.naturalHeight, 1);
+  const drawW = Math.round(img.naturalWidth * scale);
+  const drawH = Math.round(img.naturalHeight * scale);
+
+  baseCanvas.width = drawW;
+  baseCanvas.height = drawH;
+  overlayCanvas.width = drawW;
+  overlayCanvas.height = drawH;
+
+  // Position overlay on top of base
+  overlayCanvas.style.width = drawW + 'px';
+  overlayCanvas.style.height = drawH + 'px';
+
+  const ctx = baseCanvas.getContext('2d');
+  ctx.drawImage(img, 0, 0, drawW, drawH);
+
+  overlayData.imageWidth = drawW;
+  overlayData.imageHeight = drawH;
+}
+
+// === FULL ANALYSIS PIPELINE ===
+async function analyzeImage(img) {
+  showProcessing('Running detection pipeline...');
+
+  // Reset overlay data
+  overlayData.cocoPredictions = [];
+  overlayData.faces = [];
+  overlayData.poseKeypoints = [];
+  overlayData.skinMap = null;
+  overlayData.exclusionMask = null;
+  overlayData.bboxMask = null;
+  overlayData.bodyZones = null;
+  overlayData.personBboxes = [];
+  overlayData.clothingData = [];
+  overlayData.clothingOverride = null;
+
+  // Step 1: COCO-SSD detection
+  showProcessing('Running COCO-SSD object detection...');
+  let cocoPredictions = [];
+  let personBboxes = null;
+  let sceneObjects = null;
+  let personCount = 0;
+
+  if (cocoModel) {
+    // Create detection canvas (max 300x300 like the extension)
+    const detCanvas = document.createElement('canvas');
+    const detScale = Math.min(300 / img.naturalWidth, 300 / img.naturalHeight, 1);
+    detCanvas.width = Math.round(img.naturalWidth * detScale);
+    detCanvas.height = Math.round(img.naturalHeight * detScale);
+    detCanvas.getContext('2d').drawImage(img, 0, 0, detCanvas.width, detCanvas.height);
+
+    cocoPredictions = await cocoModel.detect(detCanvas, 20, 0.3);
+    overlayData.cocoPredictions = cocoPredictions;
+
+    const people = cocoPredictions.filter(p => p.class === 'person');
+    personCount = people.length;
+
+    if (people.length > 0) {
+      personBboxes = {
+        boxes: people.map(p => p.bbox),
+        sourceWidth: detCanvas.width,
+        sourceHeight: detCanvas.height
+      };
+      overlayData.personBboxes = people.map(p => ({
+        bbox: p.bbox,
+        score: p.score,
+        sourceWidth: detCanvas.width,
+        sourceHeight: detCanvas.height
+      }));
+    }
+
+    sceneObjects = cocoPredictions
+      .filter(d => d.class !== 'person')
+      .map(d => ({ class: d.class, score: d.score }));
+  }
+
+  // Step 2: BlazeFace
+  showProcessing('Running BlazeFace...');
+  let faceData = null;
+  if (faceModel) {
+    const faceCanvas = document.createElement('canvas');
+    const fScale = Math.min(300 / img.naturalWidth, 300 / img.naturalHeight, 1);
+    faceCanvas.width = Math.round(img.naturalWidth * fScale);
+    faceCanvas.height = Math.round(img.naturalHeight * fScale);
+    faceCanvas.getContext('2d').drawImage(img, 0, 0, faceCanvas.width, faceCanvas.height);
+
+    const faceDetections = await faceModel.estimateFaces(faceCanvas, false);
+    if (faceDetections.length > 0) {
+      faceData = {
+        faces: faceDetections.map(f => ({
+          topLeft: [f.topLeft[0], f.topLeft[1]],
+          bottomRight: [f.bottomRight[0], f.bottomRight[1]],
+          width: f.bottomRight[0] - f.topLeft[0],
+          height: f.bottomRight[1] - f.topLeft[1],
+          probability: f.probability ? f.probability[0] : 0
+        })),
+        imageWidth: faceCanvas.width,
+        imageHeight: faceCanvas.height
+      };
+      overlayData.faces = faceData.faces;
+    }
+  }
+
+  // Step 3: BlazePose
+  showProcessing('Running BlazePose...');
+  let poseData = null;
+  if (poseDetector && personCount > 0) {
+    const poseCanvas = document.createElement('canvas');
+    const pScale = Math.min(300 / img.naturalWidth, 300 / img.naturalHeight, 1);
+    poseCanvas.width = Math.round(img.naturalWidth * pScale);
+    poseCanvas.height = Math.round(img.naturalHeight * pScale);
+    poseCanvas.getContext('2d').drawImage(img, 0, 0, poseCanvas.width, poseCanvas.height);
+
+    const poses = await poseDetector.estimatePoses(poseCanvas);
+    if (poses && poses.length > 0) {
+      poseData = {
+        score: poses[0].score,
+        keypoints: poses[0].keypoints.map(kp => ({
+          name: kp.name, x: kp.x, y: kp.y, score: kp.score
+        })),
+        imageWidth: poseCanvas.width,
+        imageHeight: poseCanvas.height
+      };
+      overlayData.poseKeypoints = poseData.keypoints;
+    }
+  }
+
+  // Step 3b: MobileNet clothing classification
+  let clothingData = [];
+  if (mobilenetModel && personCount > 0 && personBboxes) {
+    showProcessing('Running MobileNet clothing classification...');
+    const detScale = Math.min(300 / img.naturalWidth, 300 / img.naturalHeight, 1);
+    for (let pi = 0; pi < personBboxes.boxes.length; pi++) {
+      const bbox = personBboxes.boxes[pi];
+      const bx = Math.max(0, Math.floor(bbox[0] / detScale));
+      const by = Math.max(0, Math.floor(bbox[1] / detScale));
+      let bw = Math.floor(bbox[2] / detScale);
+      let bh = Math.floor(bbox[3] / detScale);
+      if (bx + bw > img.naturalWidth) bw = img.naturalWidth - bx;
+      if (by + bh > img.naturalHeight) bh = img.naturalHeight - by;
+      if (bw < 10 || bh < 10) continue;
+
+      const cropCanvas = document.createElement('canvas');
+      cropCanvas.width = bw;
+      cropCanvas.height = bh;
+      cropCanvas.getContext('2d').drawImage(img, bx, by, bw, bh, 0, 0, bw, bh);
+      const preds = await mobilenetModel.classify(cropCanvas, 10);
+      clothingData.push({
+        personIndex: pi,
+        bbox: [bx, by, bw, bh],
+        predictions: preds.map(p => ({ className: p.className, probability: p.probability }))
+      });
+      console.log('🧠 Workbench MobileNet person ' + pi + ': ' +
+        preds.slice(0, 3).map(p => p.className.split(',')[0] + ' ' + (p.probability * 100).toFixed(1) + '%').join(', '));
+    }
+    overlayData.clothingData = clothingData;
+  }
+
+
+  // Step 5: Run detector scoring (ported from detector.js)
+  showProcessing('Running pixel analysis & scoring...');
+  const detector = new SafeScrollDetectorWorkbench();
+  const result = await detector.analyzeImageFull(img, personBboxes, sceneObjects, personCount, faceData, poseData, clothingData);
+
+  currentResults = result;
+
+  // Store overlay data from detector
+  overlayData.skinMap = result._overlayData.skinMap;
+  overlayData.exclusionMask = result._overlayData.exclusionMask;
+  overlayData.bboxMask = result._overlayData.bboxMask;
+  overlayData.bodyZones = result._overlayData.bodyZones;
+  overlayData.clothingOverride = result._overlayData.clothingOverride || null;
+
+
+  // Draw overlays and show results
+  drawOverlays();
+  showResults(result);
+  hideProcessing();
+}
+
+// === BODY OUTLINE POLYGON ===
+// Draws a body-shaped polygon using BlazePose keypoints instead of a rectangle.
+// Traces down the right side of the body, then back up the left side.
+// Returns true if polygon was drawn, false if not enough keypoints.
+function drawBodyOutlinePolygon(ctx, keypoints, scaleX, scaleY, bboxX, bboxY, bboxW, bboxH) {
+  const kpMap = {};
+  for (const kp of keypoints) kpMap[kp.name] = kp;
+  
+  // Minimum confidence for a keypoint to be used
+  const minConf = 0.25;
+  
+  // Define the outline path: right side down, then left side up
+  // This creates a polygon that traces the body silhouette
+  const rightSide = [
+    'right_ear', 'right_shoulder', 'right_elbow', 'right_wrist',
+    'right_elbow', 'right_hip', 'right_knee', 'right_ankle'
+  ];
+  const leftSide = [
+    'left_ankle', 'left_knee', 'left_hip',
+    'left_wrist', 'left_elbow', 'left_shoulder', 'left_ear'
+  ];
+  
+  // Check we have enough keypoints for a meaningful outline
+  // Need at least shoulders and hips
+  const requiredPoints = ['left_shoulder', 'right_shoulder', 'left_hip', 'right_hip'];
+  const hasRequired = requiredPoints.every(name => kpMap[name] && kpMap[name].score > minConf);
+  if (!hasRequired) return false;
+  
+  // Build the outline path, adding padding around keypoints for a body-like shape
+  const outlinePoints = [];
+  
+  // Helper: add a point with optional horizontal padding (to make the outline wider than skeleton)
+  function addPoint(name, padX, padY) {
+    const kp = kpMap[name];
+    if (kp && kp.score > minConf) {
+      outlinePoints.push({
+        x: (kp.x + (padX || 0)) * scaleX,
+        y: (kp.y + (padY || 0)) * scaleY
+      });
+      return true;
+    }
+    return false;
+  }
+  
+  // Calculate body width from shoulders for proportional padding
+  const lShoulder = kpMap['left_shoulder'];
+  const rShoulder = kpMap['right_shoulder'];
+  const shoulderWidth = Math.abs(rShoulder.x - lShoulder.x);
+  const pad = shoulderWidth * 0.25; // 25% of shoulder width as padding
+  const narrowPad = shoulderWidth * 0.15; // narrower padding for limbs
+  
+  // Top of head (use nose or midpoint of ears with upward offset)
+  const nose = kpMap['nose'];
+  if (nose && nose.score > minConf) {
+    const headTop = nose.y - shoulderWidth * 0.5; // estimate top of head
+    outlinePoints.push({ x: nose.x * scaleX, y: Math.max(headTop, bboxY) * scaleY });
+  }
+  
+  // Right side going down
+  addPoint('right_ear', narrowPad, 0);
+  addPoint('right_shoulder', pad, -narrowPad);
+  
+  // Right arm: only extend to wrist if arm is away from body
+  const rWrist = kpMap['right_wrist'];
+  const rElbow = kpMap['right_elbow'];
+  const rHip = kpMap['right_hip'];
+  if (rWrist && rWrist.score > minConf && rElbow && rElbow.score > minConf) {
+    // Check if arm extends significantly beyond the torso
+    const torsoRight = Math.max(rShoulder.x, rHip ? rHip.x : rShoulder.x);
+    if (rWrist.x > torsoRight + pad || rElbow.x > torsoRight + pad) {
+      addPoint('right_elbow', narrowPad, 0);
+      addPoint('right_wrist', narrowPad, narrowPad);
+      addPoint('right_elbow', narrowPad, 0); // back up to elbow
+    }
+  }
+  
+  addPoint('right_hip', pad, 0);
+  addPoint('right_knee', narrowPad, 0);
+  addPoint('right_ankle', narrowPad, narrowPad);
+  
+  // Bottom: cross from right ankle to left ankle
+  // (The line itself handles this by the path order)
+  
+  // Left side going up
+  addPoint('left_ankle', -narrowPad, narrowPad);
+  addPoint('left_knee', -narrowPad, 0);
+  addPoint('left_hip', -pad, 0);
+  
+  // Left arm: same logic as right
+  const lWrist = kpMap['left_wrist'];
+  const lElbow = kpMap['left_elbow'];
+  const lHip = kpMap['left_hip'];
+  if (lWrist && lWrist.score > minConf && lElbow && lElbow.score > minConf) {
+    const torsoLeft = Math.min(lShoulder.x, lHip ? lHip.x : lShoulder.x);
+    if (lWrist.x < torsoLeft - pad || lElbow.x < torsoLeft - pad) {
+      addPoint('left_elbow', -narrowPad, 0);
+      addPoint('left_wrist', -narrowPad, narrowPad);
+      addPoint('left_elbow', -narrowPad, 0);
+    }
+  }
+  
+  addPoint('left_shoulder', -pad, -narrowPad);
+  addPoint('left_ear', -narrowPad, 0);
+  
+  // Close back to head top
+  if (nose && nose.score > minConf) {
+    const headTop = nose.y - shoulderWidth * 0.5;
+    outlinePoints.push({ x: nose.x * scaleX, y: Math.max(headTop, bboxY) * scaleY });
+  }
+  
+  if (outlinePoints.length < 6) return false; // not enough points for meaningful outline
+  
+  // Draw the polygon
+  ctx.beginPath();
+  ctx.moveTo(outlinePoints[0].x, outlinePoints[0].y);
+  for (let i = 1; i < outlinePoints.length; i++) {
+    ctx.lineTo(outlinePoints[i].x, outlinePoints[i].y);
+  }
+  ctx.closePath();
+  ctx.strokeStyle = '#00ff88';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  
+  // Optional: light fill for visibility
+  ctx.fillStyle = 'rgba(0, 255, 136, 0.06)';
+  ctx.fill();
+  
+  return true;
+}
+
+// === OVERLAY DRAWING ===
+function drawOverlays() {
+  const canvas = document.getElementById('overlayCanvas');
+  const ctx = canvas.getContext('2d');
+  const w = canvas.width;
+  const h = canvas.height;
+  ctx.clearRect(0, 0, w, h);
+
+  // Scale factors from various source coordinate systems to display canvas
+  const imgNatW = currentImage.naturalWidth;
+  const imgNatH = currentImage.naturalHeight;
+  const dispScaleX = w / imgNatW;
+  const dispScaleY = h / imgNatH;
+
+  // Scale from 299x299 analysis canvas to display
+  const anlScaleX = w / 299;
+  const anlScaleY = h / 299;
+
+  // Scale from detection canvas (max 300x300) to display
+  const detScale = Math.min(300 / imgNatW, 300 / imgNatH, 1);
+  const detW = Math.round(imgNatW * detScale);
+  const detH = Math.round(imgNatH * detScale);
+  const detDispScaleX = w / detW;
+  const detDispScaleY = h / detH;
+
+  // Layer: Person BBox mask region
+  if (document.getElementById('layer-bbox-mask').checked && overlayData.bboxMask) {
+    const mask = overlayData.bboxMask;
+    ctx.fillStyle = 'rgba(0, 255, 0, 0.12)';
+    for (let y = 0; y < 299; y++) {
+      for (let x = 0; x < 299; x++) {
+        if (mask[y * 299 + x] === 1) {
+          ctx.fillRect(x * anlScaleX, y * anlScaleY, anlScaleX + 0.5, anlScaleY + 0.5);
+        }
+      }
+    }
+  }
+
+  // Layer: Skin detection mask
+  if (document.getElementById('layer-skin').checked && overlayData.skinMap) {
+    const skin = overlayData.skinMap;
+    ctx.fillStyle = 'rgba(255, 50, 50, 0.35)';
+    for (let y = 0; y < 299; y++) {
+      for (let x = 0; x < 299; x++) {
+        if (skin[y * 299 + x] === 1) {
+          ctx.fillRect(x * anlScaleX, y * anlScaleY, anlScaleX + 0.5, anlScaleY + 0.5);
+        }
+      }
+    }
+  }
+
+  // Layer: Face/Arm exclusion zones
+  if (document.getElementById('layer-exclusion').checked && overlayData.exclusionMask) {
+    const excl = overlayData.exclusionMask;
+    ctx.fillStyle = 'rgba(50, 50, 255, 0.3)';
+    for (let y = 0; y < 299; y++) {
+      for (let x = 0; x < 299; x++) {
+        if (excl[y * 299 + x] === 1) {
+          ctx.fillRect(x * anlScaleX, y * anlScaleY, anlScaleX + 0.5, anlScaleY + 0.5);
+        }
+      }
+    }
+  }
+
+  // Layer: COCO-SSD bounding boxes
+  if (document.getElementById('layer-coco').checked) {
+    const useOutline = document.getElementById('layer-body-outline').checked;
+    ctx.strokeStyle = '#00ff88';
+    ctx.lineWidth = 2;
+    ctx.font = '12px monospace';
+    for (const pred of overlayData.cocoPredictions) {
+      const [bx, by, bw, bh] = pred.bbox;
+      const dx = bx * detDispScaleX;
+      const dy = by * detDispScaleY;
+      const dw = bw * detDispScaleX;
+      const dh = bh * detDispScaleY;
+
+      let drewPolygon = false;
+      if (useOutline && pred.class === 'person' && overlayData.poseKeypoints && overlayData.poseKeypoints.length > 0) {
+        drewPolygon = drawBodyOutlinePolygon(ctx, overlayData.poseKeypoints, detDispScaleX, detDispScaleY, bx, by, bw, bh);
+      }
+      if (!drewPolygon) {
+        ctx.strokeRect(dx, dy, dw, dh);
+      }
+
+      const label = pred.class + ' ' + (pred.score * 100).toFixed(0) + '%';
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+      ctx.fillRect(dx, dy - 16, ctx.measureText(label).width + 8, 16);
+      ctx.fillStyle = '#00ff88';
+      ctx.fillText(label, dx + 4, dy - 4);
+    }
+  }
+
+  // Layer: BlazeFace face boxes
+  if (document.getElementById('layer-face').checked) {
+    ctx.strokeStyle = '#00bfff';
+    ctx.lineWidth = 2;
+    ctx.font = '11px monospace';
+
+    // BlazeFace detections (in detection canvas coords)
+    for (const face of overlayData.faces) {
+      const fx = face.topLeft[0] * detDispScaleX;
+      const fy = face.topLeft[1] * detDispScaleY;
+      const fw = face.width * detDispScaleX;
+      const fh = face.height * detDispScaleY;
+      ctx.strokeRect(fx, fy, fw, fh);
+      const label = 'Face ' + ((face.probability || 0) * 100).toFixed(0) + '%';
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+      ctx.fillRect(fx, fy - 14, ctx.measureText(label).width + 8, 14);
+      ctx.fillStyle = '#00bfff';
+      ctx.fillText(label, fx + 4, fy - 3);
+    }
+
+  }
+
+  // Layer: BlazePose skeleton
+  if (document.getElementById('layer-pose').checked && overlayData.poseKeypoints.length > 0) {
+    const kps = overlayData.poseKeypoints;
+    // Build lookup
+    const kpMap = {};
+    for (const kp of kps) kpMap[kp.name] = kp;
+
+    // Connections
+    const connections = [
+      ['nose', 'left_eye'], ['nose', 'right_eye'],
+      ['left_eye', 'left_ear'], ['right_eye', 'right_ear'],
+      ['left_shoulder', 'right_shoulder'],
+      ['left_shoulder', 'left_elbow'], ['left_elbow', 'left_wrist'],
+      ['right_shoulder', 'right_elbow'], ['right_elbow', 'right_wrist'],
+      ['left_shoulder', 'left_hip'], ['right_shoulder', 'right_hip'],
+      ['left_hip', 'right_hip'],
+      ['left_hip', 'left_knee'], ['left_knee', 'left_ankle'],
+      ['right_hip', 'right_knee'], ['right_knee', 'right_ankle']
+    ];
+
+    ctx.strokeStyle = '#ff6ec7';
+    ctx.lineWidth = 2;
+    for (const [a, b] of connections) {
+      const pa = kpMap[a];
+      const pb = kpMap[b];
+      if (pa && pb && pa.score > 0.3 && pb.score > 0.3) {
+        ctx.beginPath();
+        ctx.moveTo(pa.x * detDispScaleX, pa.y * detDispScaleY);
+        ctx.lineTo(pb.x * detDispScaleX, pb.y * detDispScaleY);
+        ctx.stroke();
+      }
+    }
+
+    // Keypoints
+    for (const kp of kps) {
+      if (kp.score > 0.3) {
+        ctx.fillStyle = kp.score > 0.6 ? '#ff6ec7' : 'rgba(255,110,199,0.5)';
+        ctx.beginPath();
+        ctx.arc(kp.x * detDispScaleX, kp.y * detDispScaleY, 3, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+  }
+
+  // Layer: Body zones
+  if (document.getElementById('layer-zones').checked && overlayData.bodyZones) {
+    const zones = overlayData.bodyZones;
+    const zoneNames = ['head', 'shoulders', 'chest', 'waist', 'hips', 'thighs', 'calves', 'feet'];
+    const zoneColors = {
+      head: 'rgba(200,200,255,0.25)',
+      shoulders: 'rgba(100,200,255,0.25)',
+      chest: 'rgba(255,100,100,0.25)',
+      waist: 'rgba(255,200,50,0.25)',
+      hips: 'rgba(200,100,255,0.25)',
+      thighs: 'rgba(255,150,50,0.25)',
+      calves: 'rgba(100,255,200,0.25)',
+      feet: 'rgba(200,200,200,0.25)'
+    };
+    const zoneBorderColors = {
+      head: '#c8c8ff',
+      shoulders: '#64c8ff',
+      chest: '#ff6464',
+      waist: '#ffc832',
+      hips: '#c864ff',
+      thighs: '#ff9632',
+      calves: '#64ffc8',
+      feet: '#c8c8c8'
+    };
+
+    ctx.font = '10px monospace';
+    for (const name of zoneNames) {
+      const zone = zones[name];
+      if (!zone || !zone.bounds) continue;
+      const b = zone.bounds;
+      const dx = b.left * anlScaleX;
+      const dy = b.top * anlScaleY;
+      const dw = (b.right - b.left) * anlScaleX;
+      const dh = (b.bottom - b.top) * anlScaleY;
+
+      ctx.fillStyle = zoneColors[name] || 'rgba(255,165,0,0.2)';
+      ctx.fillRect(dx, dy, dw, dh);
+      ctx.strokeStyle = zoneBorderColors[name] || '#ffa500';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(dx, dy, dw, dh);
+
+      // Label
+      const pct = (zone.skinRatio * 100).toFixed(0) + '%';
+      const label = name + ' ' + pct;
+      ctx.fillStyle = 'rgba(0,0,0,0.8)';
+      ctx.fillRect(dx, dy, ctx.measureText(label).width + 6, 13);
+      ctx.fillStyle = zoneBorderColors[name] || '#ffa500';
+      ctx.fillText(label, dx + 3, dy + 10);
+    }
+  }
+}
+
+  // Layer: Clothing coverage rectangles
+  if (document.getElementById('layer-clothing').checked && overlayData.clothingOverride && overlayData.clothingOverride.coverageRects) {
+    ctx.strokeStyle = 'rgba(0,200,100,0.9)';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([6, 3]);
+    for (const rect of overlayData.clothingOverride.coverageRects) {
+      const dx = rect.x * anlScaleX;
+      const dy = rect.y * anlScaleY;
+      const dw = rect.w * anlScaleX;
+      const dh = rect.h * anlScaleY;
+      ctx.fillStyle = 'rgba(0,200,100,0.15)';
+      ctx.fillRect(dx, dy, dw, dh);
+      ctx.strokeRect(dx, dy, dw, dh);
+    }
+    ctx.setLineDash([]);
+    // Label
+    const ct = overlayData.clothingOverride.clothingType || 'clothing';
+    const conf = (overlayData.clothingOverride.confidence * 100).toFixed(0) + '%';
+    const removed = overlayData.clothingOverride.pixelsRemoved || 0;
+    const labelText = ct + ' ' + conf + ' (-' + removed + 'px)';
+    ctx.fillStyle = 'rgba(0,0,0,0.8)';
+    const rect0 = overlayData.clothingOverride.coverageRects[0];
+    if (rect0) {
+      const lx = rect0.x * anlScaleX;
+      const ly = rect0.y * anlScaleY - 16;
+      ctx.fillRect(lx, ly, ctx.measureText(labelText).width + 8, 15);
+      ctx.fillStyle = 'rgba(0,200,100,1)';
+      ctx.font = '11px monospace';
+      ctx.fillText(labelText, lx + 4, ly + 11);
+    }
+  }
+
+// === RESULTS DISPLAY ===
+function showResults(result) {
+  // Score
+  const scoreSection = document.getElementById('scoreSection');
+  scoreSection.style.display = 'block';
+  const scoreNum = document.getElementById('scoreNumber');
+  const scoreDec = document.getElementById('scoreDecision');
+  scoreNum.textContent = result.score;
+
+  if (result.score >= 80) {
+    scoreNum.style.color = '#e94560';
+    scoreDec.textContent = 'BLOCKED';
+    scoreDec.style.background = 'rgba(233,69,96,0.2)';
+    scoreDec.style.color = '#e94560';
+  } else if (result.score >= 45) {
+    scoreNum.style.color = '#f0a500';
+    scoreDec.textContent = 'BLURRED';
+    scoreDec.style.background = 'rgba(240,165,0,0.2)';
+    scoreDec.style.color = '#f0a500';
+  } else {
+    scoreNum.style.color = '#4CAF50';
+    scoreDec.textContent = 'ALLOWED';
+    scoreDec.style.background = 'rgba(76,175,80,0.2)';
+    scoreDec.style.color = '#4CAF50';
+  }
+
+  // Reasons
+  const reasonsSection = document.getElementById('reasonsSection');
+  reasonsSection.style.display = 'block';
+  const reasonList = document.getElementById('reasonList');
+  reasonList.innerHTML = '';
+  const reasons = (result.reason || '').split(', ').filter(r => r);
+  for (const r of reasons) {
+    const li = document.createElement('li');
+    const bullet = document.createElement('span');
+    bullet.className = 'bullet';
+    // Color code by type
+    if (r.includes('skin') || r.includes('Skin') || r.includes('exposure') || r.includes('Exposed')) {
+      bullet.style.background = '#e94560';
+    } else if (r.includes('face') || r.includes('Face') || r.includes('Portrait') || r.includes('Headshot')) {
+      bullet.style.background = '#00bfff';
+    } else if (r.includes('pose') || r.includes('Pose') || r.includes('body') || r.includes('Body')) {
+      bullet.style.background = '#ff6ec7';
+    } else {
+      bullet.style.background = '#888';
+    }
+    li.appendChild(bullet);
+    li.appendChild(document.createTextNode(r));
+    reasonList.appendChild(li);
+  }
+
+  // Details
+  const detailsSection = document.getElementById('detailsSection');
+  detailsSection.style.display = 'block';
+  const grid = document.getElementById('detailGrid');
+  grid.innerHTML = '';
+  const details = [
+    // --- COCO-SSD Detection ---
+    ['__section__', 'COCO-SSD DETECTION'],
+    ['Person Count', result.personCount || 0],
+    ['COCO Objects', overlayData.cocoPredictions.length > 0 
+      ? overlayData.cocoPredictions.map(p => p.class + ' (' + (p.score * 100).toFixed(0) + '%)').join(', ')
+      : 'None detected'],
+    ['Scene Objects', (result.sceneObjects && result.sceneObjects.length > 0) 
+      ? result.sceneObjects.map(o => o.class + ' (' + (o.score * 100).toFixed(0) + '%)').join(', ')
+      : 'None'],
+
+    // --- Face Detection ---
+    ['__section__', 'FACE DETECTION'],
+    ['BlazeFace', overlayData.faces.length > 0 
+      ? overlayData.faces.length + ' face(s) — ' + overlayData.faces.map(f => (f.probability * 100).toFixed(0) + '%').join(', ')
+      : 'None detected'],
+    // --- Pose Detection ---
+    ['__section__', 'POSE DETECTION'],
+    ['BlazePose', overlayData.poseKeypoints.length > 0 
+      ? overlayData.poseKeypoints.filter(kp => kp.score > 0.3).length + '/' + overlayData.poseKeypoints.length + ' keypoints (>30% conf)'
+      : 'No pose detected'],
+    ['Key Joints', overlayData.poseKeypoints.length > 0
+      ? (() => {
+          const kpMap = {};
+          for (const kp of overlayData.poseKeypoints) kpMap[kp.name] = kp;
+          const joints = ['left_shoulder', 'right_shoulder', 'left_hip', 'right_hip', 'left_knee', 'right_knee'];
+          return joints.map(j => {
+            const kp = kpMap[j];
+            const short = j.replace('left_', 'L ').replace('right_', 'R ');
+            return kp ? short + (kp.score * 100).toFixed(0) + '%' : short + '—';
+          }).join(', ');
+        })()
+      : 'N/A'],
+
+    // --- Clothing Classification ---
+    ['__section__', 'CLOTHING CLASSIFICATION'],
+    ['MobileNet', overlayData.clothingData && overlayData.clothingData.length > 0
+      ? overlayData.clothingData.map(cd => {
+          const top3 = cd.predictions.slice(0, 3).map(p => p.className.split(',')[0] + ' ' + (p.probability * 100).toFixed(1) + '%');
+          return 'Person ' + cd.personIndex + ': ' + top3.join(', ');
+        }).join(' | ')
+      : 'No classification'],
+    ['Clothing Type', result.clothingType || 'None detected'],
+    ['Clothing Confidence', result.clothingConfidence ? (result.clothingConfidence * 100).toFixed(1) + '%' : 'N/A'],
+    ['Pixels Removed', result.clothingPixelsRemoved || 0],
+    ['Coverage Type', overlayData.clothingOverride ? overlayData.clothingOverride.coverageType : 'N/A'],
+
+    // --- Skin Analysis ---
+    ['__section__', 'SKIN ANALYSIS'],
+    ['Skin Ratio', (result.skinRatio * 100).toFixed(1) + '%'],
+    ['Upper Skin', (result.upperRatio * 100).toFixed(1) + '%'],
+    ['Middle Skin', (result.middleRatio * 100).toFixed(1) + '%'],
+    ['Lower Skin', (result.lowerRatio * 100).toFixed(1) + '%'],
+    ['Skin Clusters', result.skinClusterCount || 0],
+    ['Largest Cluster', result.largestClusterRatio !== undefined ? (result.largestClusterRatio * 100).toFixed(1) + '%' : 'N/A'],
+    ['Cluster Smooth', result.largestClusterSmoothness !== undefined ? (result.largestClusterSmoothness * 100).toFixed(0) + '%' : 'N/A'],
+    ['Uniform Ratio', result.uniformRatio !== undefined ? (result.uniformRatio * 100).toFixed(0) + '%' : 'N/A'],  ];
+
+  for (const [label, value] of details) {
+    if (label === '__section__') {
+      // Section header spanning both columns
+      const headerEl = document.createElement('div');
+      headerEl.style.cssText = 'grid-column: 1 / -1; font-size: 10px; font-weight: bold; color: #e94560; text-transform: uppercase; letter-spacing: 1px; margin-top: 8px; padding-top: 6px; border-top: 1px solid rgba(255,255,255,0.1);';
+      headerEl.textContent = value;
+      grid.appendChild(headerEl);
+      continue;
+    }
+    const labelEl = document.createElement('span');
+    labelEl.className = 'label';
+    labelEl.textContent = label;
+    const valueEl = document.createElement('span');
+    valueEl.className = 'value';
+    // Wrap long values
+    if (String(value).length > 30) {
+      valueEl.style.cssText = 'font-size: 10px; word-break: break-word; line-height: 1.3;';
+    }
+    valueEl.textContent = value;
+    grid.appendChild(labelEl);
+    grid.appendChild(valueEl);
+  }
+
+  // Body zones
+  if (overlayData.bodyZones) {
+    const zonesSection = document.getElementById('zonesSection');
+    zonesSection.style.display = 'block';
+    const zoneBars = document.getElementById('zoneBars');
+    zoneBars.innerHTML = '';
+    const zoneNames = ['shoulders', 'chest', 'waist', 'hips', 'thighs', 'calves', 'feet'];
+    for (const name of zoneNames) {
+      const zone = overlayData.bodyZones[name];
+      if (!zone) continue;
+      const pct = (zone.skinRatio * 100).toFixed(0);
+      const row = document.createElement('div');
+      row.className = 'zone-bar-row';
+      row.innerHTML =
+        '<span class="zone-bar-label">' + name + '</span>' +
+        '<div class="zone-bar-track"><div class="zone-bar-fill" style="width:' + Math.min(pct, 100) + '%;background:' +
+        (zone.skinRatio > 0.5 ? '#e94560' : zone.skinRatio > 0.25 ? '#f0a500' : '#4CAF50') +
+        '"></div></div>' +
+        '<span class="zone-bar-value">' + pct + '%</span>';
+      zoneBars.appendChild(row);
+    }
+  }
+
+  // Scene context
+  if (result.sceneContext) {
+    const sceneSection = document.getElementById('sceneSection');
+    sceneSection.style.display = 'block';
+    const sceneInfo = document.getElementById('sceneInfo');
+    sceneInfo.innerHTML =
+      '<strong>Type:</strong> ' + result.sceneContext.sceneType + '<br>' +
+      '<strong>Description:</strong> ' + result.sceneContext.description + '<br>' +
+      '<strong>Score Modifier:</strong> ' + (result.sceneContext.scoreModifier > 0 ? '+' : '') + result.sceneContext.scoreModifier + '<br>' +
+      '<strong>Intimate:</strong> ' + (result.sceneContext.intimate ? 'Yes' : 'No') + '<br>' +
+      '<strong>Isolated:</strong> ' + (result.sceneContext.isolated ? 'Yes' : 'No');
+  }
+}
+
+function showProcessing(text) {
+  const el = document.getElementById('processingIndicator');
+  document.getElementById('processingText').textContent = text;
+  el.classList.add('active');
+}
+function hideProcessing() {
+  document.getElementById('processingIndicator').classList.remove('active');
+}
+
+// === LAYER TOGGLE EVENT LISTENERS ===
+function setupLayerToggles() {
+  const layerIds = ['layer-coco', 'layer-body-outline', 'layer-face', 'layer-pose', 'layer-clothing', 'layer-skin',
+                    'layer-zones', 'layer-exclusion', 'layer-bbox-mask'];
+  for (const id of layerIds) {
+    document.getElementById(id).addEventListener('change', () => {
+      if (currentImage) drawOverlays();
+    });
+  }
+}
+
+// === INIT ===
+setupImageInput();
+setupLayerToggles();
+initModels();
+</script>
+
+<script>
+// ============================================================
+// SafeScrollDetectorWorkbench — Ported from detector.js
+// Same scoring logic, but exposes intermediate data for overlays
+// ============================================================
+class SafeScrollDetectorWorkbench {
+  constructor() {
+    this.thresholds = { blur: 45, block: 80 };
+  }
+
+  async analyzeImageFull(img, personBboxes, sceneObjects, personCount, faceData, poseData, clothingData) {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    canvas.width = 299;
+    canvas.height = 299;
+    ctx.drawImage(img, 0, 0, 299, 299);
+    const imageData = ctx.getImageData(0, 0, 299, 299);
+    const pixels = imageData.data;
+
+    // Overlay data we'll collect
+    const _overlayData = {
+      skinMap: null,
+      exclusionMask: null,
+      bboxMask: null,
+      bodyZones: null,
+    };
+
+    // === BOUNDING BOX MASKING ===
+    if (personBboxes && personBboxes.boxes.length > 0) {
+      const scaleX = 299 / personBboxes.sourceWidth;
+      const scaleY = 299 / personBboxes.sourceHeight;
+      const scaledBoxes = personBboxes.boxes.map(bbox => {
+        const bx = Math.max(0, Math.floor(bbox[0] * scaleX));
+        const by = Math.max(0, Math.floor(bbox[1] * scaleY));
+        const bw = Math.min(299 - bx, Math.ceil(bbox[2] * scaleX));
+        const bh = Math.min(299 - by, Math.ceil(bbox[3] * scaleY));
+        return { x: bx, y: by, w: bw, h: bh };
+      });
+
+      const mask = new Uint8Array(299 * 299);
+      for (const box of scaledBoxes) {
+        for (let y = box.y; y < box.y + box.h && y < 299; y++) {
+          for (let x = box.x; x < box.x + box.w && x < 299; x++) {
+            mask[y * 299 + x] = 1;
+          }
+        }
+      }
+      _overlayData.bboxMask = mask;
+
+      for (let i = 0; i < 299 * 299; i++) {
+        if (mask[i] === 0) {
+          const pi = i * 4;
+          pixels[pi] = 0;
+          pixels[pi + 1] = 0;
+          pixels[pi + 2] = 0;
+        }
+      }
+    }
+    // === FACE + ARM EXCLUSION ===
+    const exclusionMask = new Uint8Array(299 * 299);
+    if (faceData || poseData) {
+      const faceScaleX = faceData ? 299 / (Math.round(Math.min(300 / faceData.imageWidth, 1) * faceData.imageWidth)) : 1;
+      const faceScaleY = faceData ? 299 / (Math.round(Math.min(300 / faceData.imageHeight, 1) * faceData.imageHeight)) : 1;
+      const poseW = poseData ? (poseData.imageWidth || 299) : 299;
+      const poseH = poseData ? (poseData.imageHeight || 299) : 299;
+      const poseScaleX = 299 / poseW;
+      const poseScaleY = 299 / poseH;
+
+      function excludeRect(x, y, w, h) {
+        const x0 = Math.max(0, Math.floor(x));
+        const y0 = Math.max(0, Math.floor(y));
+        const x1 = Math.min(299, Math.ceil(x + w));
+        const y1 = Math.min(299, Math.ceil(y + h));
+        for (let ey = y0; ey < y1; ey++)
+          for (let ex = x0; ex < x1; ex++)
+            exclusionMask[ey * 299 + ex] = 1;
+      }
+      function excludeCircle(cx, cy, radius) {
+        const r2 = radius * radius;
+        const x0 = Math.max(0, Math.floor(cx - radius));
+        const y0 = Math.max(0, Math.floor(cy - radius));
+        const x1 = Math.min(299, Math.ceil(cx + radius));
+        const y1 = Math.min(299, Math.ceil(cy + radius));
+        for (let ey = y0; ey < y1; ey++)
+          for (let ex = x0; ex < x1; ex++)
+            if ((ex - cx) * (ex - cx) + (ey - cy) * (ey - cy) <= r2)
+              exclusionMask[ey * 299 + ex] = 1;
+      }
+      function excludeThickLine(x1, y1, x2, y2, thickness) {
+        const dx = x2 - x1, dy = y2 - y1;
+        const lenSq = dx * dx + dy * dy;
+        const ex0 = Math.max(0, Math.floor(Math.min(x1, x2) - thickness));
+        const ey0 = Math.max(0, Math.floor(Math.min(y1, y2) - thickness));
+        const ex1 = Math.min(299, Math.ceil(Math.max(x1, x2) + thickness));
+        const ey1 = Math.min(299, Math.ceil(Math.max(y1, y2) + thickness));
+        for (let ey = ey0; ey < ey1; ey++) {
+          for (let ex = ex0; ex < ex1; ex++) {
+            let dist;
+            if (lenSq === 0) {
+              dist = Math.sqrt((ex - x1) ** 2 + (ey - y1) ** 2);
+            } else {
+              let t = Math.max(0, Math.min(1, ((ex - x1) * dx + (ey - y1) * dy) / lenSq));
+              const px = x1 + t * dx, py = y1 + t * dy;
+              dist = Math.sqrt((ex - px) ** 2 + (ey - py) ** 2);
+            }
+            if (dist <= thickness) exclusionMask[ey * 299 + ex] = 1;
+          }
+        }
+      }
+
+      // Face exclusion
+      if (faceData && faceData.faces) {
+        for (const face of faceData.faces) {
+          const fx = face.topLeft[0] * faceScaleX;
+          const fy = face.topLeft[1] * faceScaleY;
+          const fw = face.width * faceScaleX;
+          const fh = face.height * faceScaleY;
+          excludeRect(fx - fw * 0.1, fy, fw * 1.2, fh * 1.3);
+        }
+      }
+
+      // Arm exclusion
+      if (poseData && poseData.keypoints && poseData.keypoints.length >= 33) {
+        const kp = {};
+        for (const k of poseData.keypoints) kp[k.name] = k;
+        const CONF = 0.5;
+        const armThickness = 299 * 0.08;
+        const handRadius = 299 * 0.05;
+
+        const armPairs = [
+          ['left_shoulder', 'left_elbow'], ['left_elbow', 'left_wrist'],
+          ['right_shoulder', 'right_elbow'], ['right_elbow', 'right_wrist']
+        ];
+        for (const [a, b] of armPairs) {
+          if (kp[a] && kp[b] && kp[a].score >= CONF && kp[b].score >= CONF) {
+            excludeThickLine(
+              kp[a].x * poseScaleX, kp[a].y * poseScaleY,
+              kp[b].x * poseScaleX, kp[b].y * poseScaleY,
+              armThickness
+            );
+          }
+        }
+        for (const wrist of ['left_wrist', 'right_wrist']) {
+          if (kp[wrist] && kp[wrist].score >= CONF) {
+            excludeCircle(kp[wrist].x * poseScaleX, kp[wrist].y * poseScaleY, handRadius);
+          }
+        }
+      }
+
+      // Apply exclusion
+      for (let i = 0; i < 299 * 299; i++) {
+        if (exclusionMask[i] === 1) {
+          pixels[i * 4] = 0;
+          pixels[i * 4 + 1] = 0;
+          pixels[i * 4 + 2] = 0;
+        }
+      }
+    }
+    _overlayData.exclusionMask = exclusionMask;
+
+    // === COMBINED ANALYSIS (pixel loops) ===
+    const combined = this.analyzeCombined(pixels, 299, 299);
+    combined.personCount = personCount;
+
+    // Store skinMap for overlay BEFORE body zone measurement deletes it
+    _overlayData.skinMap = new Uint8Array(combined._skinMap);
+    // CLOTHING OVERRIDE: Use MobileNet classification to remove false-positive skin pixels
+    if (combined._skinMap && clothingData && clothingData.length > 0 && poseData) {
+      const clothingOverride = this.applyClothingOverride(
+        combined._skinMap, combined._skinMapWidth, combined._skinMapHeight,
+        clothingData, poseData, personBboxes
+      );
+      if (clothingOverride) {
+        combined.clothingType = clothingOverride.clothingType;
+        combined.clothingConfidence = clothingOverride.confidence;
+        combined.clothingPixelsRemoved = clothingOverride.pixelsRemoved;
+        _overlayData.clothingOverride = clothingOverride;
+        if (clothingOverride.pixelsRemoved > 0) {
+          let newSkinCount = 0;
+          for (let i = 0; i < combined._skinMap.length; i++) {
+            if (combined._skinMap[i]) newSkinCount++;
+          }
+          combined.skinRatio = newSkinCount / (combined._skinMapWidth * combined._skinMapHeight);
+          console.log('🧠 Workbench: Clothing override removed ' + clothingOverride.pixelsRemoved +
+            ' skin pixels (' + clothingOverride.clothingType + ' ' + (clothingOverride.confidence * 100).toFixed(0) +
+            '%), new skin ratio: ' + (combined.skinRatio * 100).toFixed(1) + '%');
+        }
+        // Update skinMap snapshot for overlay after clothing removal
+        _overlayData.skinMap = new Uint8Array(combined._skinMap);
+      }
+    }
+
+    // Body zone measurement
+    if (combined._skinMap && poseData) {
+      const bodyZones = this.measureBodyPartZones(
+        combined._skinMap, combined._skinMapWidth, combined._skinMapHeight, poseData
+      );
+      if (bodyZones) {
+        combined.bodyZones = bodyZones;
+        _overlayData.bodyZones = bodyZones;
+      }
+    }
+    delete combined._skinMap;
+    delete combined._skinMapWidth;
+    delete combined._skinMapHeight;
+   
+
+    // === SCORE CALCULATION ===
+    const score = this.calculateScore(combined, false, sceneObjects, faceData, poseData, clothingData);
+
+    let decision, action;
+    if (score >= this.thresholds.block) { decision = 'BLOCKED'; action = 'block'; }
+    else if (score >= this.thresholds.blur) { decision = 'BLURRED'; action = 'blur'; }
+    else { decision = 'ALLOWED'; action = 'allow'; }
+
+    return {
+      score, decision, action,
+      reason: combined.reason,
+      sceneObjects: sceneObjects || [],
+      personCount,
+      skinRatio: combined.skinRatio,
+      upperRatio: combined.upperRatio,
+      middleRatio: combined.middleRatio,
+      lowerRatio: combined.lowerRatio,
+    hasBodyShape: combined.hasBodyShape,
+      skinClusterCount: combined.skinClusterCount,
+      largestClusterRatio: combined.largestClusterRatio,
+      largestClusterSmoothness: combined.largestClusterSmoothness,
+      uniformRatio: combined.uniformRatio,
+      sceneContext: combined.sceneContext,
+      clothingType: combined.clothingType || null,
+      clothingConfidence: combined.clothingConfidence || 0,
+      clothingPixelsRemoved: combined.clothingPixelsRemoved || 0,
+      _overlayData
+    };
+  }
+
+  // === analyzeCombined — Single-pass pixel analysis ===
+  analyzeCombined(pixels, width, height) {
+    const totalPixels = width * height;
+    const upperEnd = Math.floor(height / 3);
+    const middleEnd = Math.floor(2 * height / 3);
+
+    let skinPixels = 0, skinPixelsYCrCb = 0;
+    let upperSkin = 0, middleSkin = 0, lowerSkin = 0;
+    let skinSumR = 0, skinSumG = 0, skinSumB = 0;
+    let skinSumR2 = 0, skinSumG2 = 0, skinSumB2 = 0;
+    let totalSaturation = 0, highSaturationPixels = 0;
+    let flatColorRuns = 0;
+    let prevQR = -1, prevQG = -1, prevQB = -1, runLength = 0;
+
+    const blockSize = 20;
+    const blocksX = Math.floor(width / blockSize);
+    const blocksY = Math.floor(height / blockSize);
+    const blockSumR = new Float32Array(blocksX * blocksY);
+    const blockSumG = new Float32Array(blocksX * blocksY);
+    const blockSumB = new Float32Array(blocksX * blocksY);
+    const blockSumR2 = new Float32Array(blocksX * blocksY);
+    const blockSumG2 = new Float32Array(blocksX * blocksY);
+    const blockSumB2 = new Float32Array(blocksX * blocksY);
+
+    const grayscale = new Float32Array(totalPixels);
+    const skinMap = new Uint8Array(totalPixels);
+
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const i = (y * width + x) * 4;
+        const r255 = pixels[i], g255 = pixels[i+1], b255 = pixels[i+2];
+        const r = r255 / 255, g = g255 / 255, b = b255 / 255;
+
+        grayscale[y * width + x] = 0.299 * r255 + 0.587 * g255 + 0.114 * b255;
+
+        const isRealistic = this.isRealisticSkin(r, g, b);
+        const hsl = this.rgbToHsl(r, g, b);
+        const isYCrCbSkin = this.isRealisticSkinYCrCb(r255, g255, b255);
+
+        if (isRealistic || isYCrCbSkin) skinMap[y * width + x] = 1;
+
+        if (isRealistic) {
+          skinPixels++;
+          skinSumR += r255; skinSumG += g255; skinSumB += b255;
+          skinSumR2 += r255*r255; skinSumG2 += g255*g255; skinSumB2 += b255*b255;
+          if (y < upperEnd) upperSkin++;
+          else if (y < middleEnd) middleSkin++;
+          else lowerSkin++;
+        }
+        if (isYCrCbSkin) skinPixelsYCrCb++;
+
+        totalSaturation += hsl.s;
+        if (hsl.s > 0.6) highSaturationPixels++;
+
+        const qr = Math.round(r * 15), qg = Math.round(g * 15), qb = Math.round(b * 15);
+        if (qr === prevQR && qg === prevQG && qb === prevQB) {
+          runLength++;
+          if (runLength === 5) flatColorRuns++;
+        } else { runLength = 0; }
+        prevQR = qr; prevQG = qg; prevQB = qb;
+
+        const bx = Math.floor(x / blockSize), by = Math.floor(y / blockSize);
+        if (bx < blocksX && by < blocksY) {
+          const bi = by * blocksX + bx;
+          blockSumR[bi] += r255; blockSumG[bi] += g255; blockSumB[bi] += b255;
+          blockSumR2[bi] += r255*r255; blockSumG2[bi] += g255*g255; blockSumB2[bi] += b255*b255;
+        }
+      }
+    }
+
+    // TEXTURE VARIANCE FILTER: Remove flat-shaded clothing from skin map
+    {
+      const minVar = activeConfig.texture_minVariance;
+      const rad = activeConfig.texture_neighborRadius;
+      let texRemoved = 0;
+      const removals = [];
+      for (let y = rad; y < height - rad; y++) {
+        for (let x = rad; x < width - rad; x++) {
+          const idx = y * width + x;
+          if (!skinMap[idx]) continue;
+          let sumCr = 0, sumCr2 = 0, cnt = 0;
+          for (let dy = -rad; dy <= rad; dy += 2) {
+            for (let dx = -rad; dx <= rad; dx += 2) {
+              const ni = ((y+dy)*width+(x+dx))*4;
+              const cr = 0.5*pixels[ni] - 0.419*pixels[ni+1] - 0.081*pixels[ni+2] + 128;
+              sumCr += cr; sumCr2 += cr*cr; cnt++;
+            }
+          }
+          if (cnt < 4) continue;
+          const mean = sumCr/cnt;
+          const std = Math.sqrt(Math.max(0, sumCr2/cnt - mean*mean));
+          if (std < minVar) removals.push(idx);
+        }
+      }
+      for (const idx of removals) { skinMap[idx] = 0; texRemoved++; }
+      if (texRemoved > 0) {
+        console.log(`Texture filter removed ${texRemoved} uniform skin pixels (threshold: ${minVar})`);
+        // Recount skin pixels from filtered map
+        skinPixels = 0; skinPixelsYCrCb = 0;
+        upperSkin = 0; middleSkin = 0; lowerSkin = 0;
+        skinSumR = 0; skinSumG = 0; skinSumB = 0;
+        skinSumR2 = 0; skinSumG2 = 0; skinSumB2 = 0;
+        for (let y = 0; y < height; y++) {
+          for (let x = 0; x < width; x++) {
+            if (skinMap[y*width+x]) {
+              const i = (y*width+x)*4;
+              const r255 = pixels[i], g255 = pixels[i+1], b255 = pixels[i+2];
+              skinPixels++;
+              skinSumR += r255; skinSumG += g255; skinSumB += b255;
+              skinSumR2 += r255*r255; skinSumG2 += g255*g255; skinSumB2 += b255*b255;
+              if (y < upperEnd) upperSkin++;
+              else if (y < middleEnd) middleSkin++;
+              else lowerSkin++;
+              if (this.isRealisticSkinYCrCb(r255, g255, b255)) skinPixelsYCrCb++;
+            }
+          }
+        }
+      }
+    }
+
+    const blockPixels = blockSize * blockSize;
+    let uniformBlocks = 0, totalBlocks = 0;
+    for (let bi = 0; bi < blocksX * blocksY; bi++) {
+      const varR = (blockSumR2[bi]/blockPixels) - (blockSumR[bi]/blockPixels)**2;
+      const varG = (blockSumG2[bi]/blockPixels) - (blockSumG[bi]/blockPixels)**2;
+      const varB = (blockSumB2[bi]/blockPixels) - (blockSumB[bi]/blockPixels)**2;
+      totalBlocks++;
+      if ((varR + varG + varB) / 3 < 100) uniformBlocks++;
+    }
+
+    let skinColorStdDev = 0;
+    if (skinPixels > 1) {
+      const varR = (skinSumR2/skinPixels) - (skinSumR/skinPixels)**2;
+      const varG = (skinSumG2/skinPixels) - (skinSumG/skinPixels)**2;
+      const varB = (skinSumB2/skinPixels) - (skinSumB/skinPixels)**2;
+      skinColorStdDev = Math.sqrt((varR + varG + varB) / 3);
+    }
+
+    let skinRatioRgb = skinPixels / totalPixels;
+    const skinRatioYCrCb = skinPixelsYCrCb / totalPixels;
+    const lowVarianceSkin = skinColorStdDev < 15 && skinPixels > 100;
+    if (lowVarianceSkin) skinRatioRgb *= 0.5;
+    let skinRatio = 0.6 * skinRatioYCrCb + 0.4 * skinRatioRgb;
+
+    const upperRatio = upperSkin / (width * upperEnd);
+    const middleRatio = middleSkin / (width * (middleEnd - upperEnd));
+    const lowerRatio = lowerSkin / (width * (height - middleEnd));
+    const avgSaturation = totalSaturation / totalPixels;
+    const highSaturationRatio = highSaturationPixels / totalPixels;
+    const flatColorRatio = flatColorRuns / totalPixels;
+    let reason = 'Safe content';
+    if (skinRatio > 0.50) reason = 'High skin exposure';
+    else if (middleRatio > 0.30 && lowerRatio > 0.30) reason = 'Exposed legs/thighs';
+    else if (middleRatio > 0.28) reason = 'Revealing clothing';
+
+    return {
+      skinRatio, upperRatio, middleRatio, lowerRatio,
+      skinColorStdDev, lowVarianceSkin, reason,
+      avgSaturation, highSaturationRatio, flatColorRatio,
+      uniformRatio: totalBlocks > 0 ? uniformBlocks / totalBlocks : 0,
+      _skinMap: skinMap,
+      _skinMapWidth: width,
+      _skinMapHeight: height,
+    };
+  }
+
+  // === REMAINING METHODS: Ported directly from detector.js ===
+  // These are identical to SafeScrollDetector — we inherit the logic
+
+  // Helper functions
+  rgbToHsl(r, g, b) {
+    const max = Math.max(r, g, b), min = Math.min(r, g, b);
+    let h, s, l = (max + min) / 2;
+    if (max === min) { h = s = 0; }
+    else {
+      const d = max - min;
+      s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+      switch (max) {
+        case r: h = ((g - b) / d + (g < b ? 6 : 0)) / 6; break;
+        case g: h = ((b - r) / d + 2) / 6; break;
+        case b: h = ((r - g) / d + 4) / 6; break;
+      }
+    }
+    return { h, s, l };
+  }
+
+  isRealisticSkin(r, g, b) {
+    if (!(r > 0.35 && r < 0.95 && g > 0.25 && g < 0.85 && b > 0.15 && b < 0.75)) return false;
+    if (!(r > g && g > b)) return false;
+    if (Math.abs(g - b) < 0.04) return false;
+    const rb = r - b;
+    if (rb < 0.05 || rb > 0.45) return false;
+    const rg = r - g;
+    if (rg < 0.02 || rg > 0.25) return false;
+    const gb = g - b;
+    if (gb < 0.02 || gb > 0.25) return false;
+    if (Math.max(r, g, b) - Math.min(r, g, b) < 0.05) return false;
+    return true;
+  }
+
+  rgbToYCrCb(r255, g255, b255) {
+    const y = Math.round(0.299 * r255 + 0.587 * g255 + 0.114 * b255);
+    const cr = Math.round((r255 - y) * 0.713 + 128);
+    const cb = Math.round((b255 - y) * 0.564 + 128);
+    return { y, cr, cb };
+  }
+
+  isRealisticSkinYCrCb(r255, g255, b255) {
+    if (r255 < 40 || g255 < 20 || b255 < 20) return false;
+    if (r255 < g255) return false;
+    const { y, cr, cb } = this.rgbToYCrCb(r255, g255, b255);
+    if (cr < 133 || cr > 173) return false;
+    if (cb < 77 || cb > 127) return false;
+    if (y < 30) return false;
+    return true;
+  }
+
+}
+
+// === Load remaining methods from detector.js ===
+// We dynamically copy the heavy methods from SafeScrollDetector prototype
+// This avoids duplicating 1500+ lines of code
+
+// Load detector.js to get the full class
+</script>
+<script src="detector.js"></script>
+<script>
+// Now copy methods from SafeScrollDetector to SafeScrollDetectorWorkbench
+// that we didn't manually port above
+const methodsToCopy = [
+  'analyzeSkinClusters',
+  'measureBodyPartZones',
+  'calculateScore',
+  'evaluateSceneContext',
+  'analyzePixels',
+  'analyzeTexture',
+  'applyClothingOverride'
+];
+
+for (const method of methodsToCopy) {
+  if (SafeScrollDetector.prototype[method]) {
+    SafeScrollDetectorWorkbench.prototype[method] = SafeScrollDetector.prototype[method];
+  } else {
+    console.warn('Workbench: Method not found on SafeScrollDetector:', method);
+  }
+}
+console.log('SafeScroll Workbench: Detection engine loaded — ' + methodsToCopy.length + ' methods inherited from detector.js');
+</script>
+
+<script>
+// ============================================================
+// Phase 2: Live Adjustment System
+// ============================================================
+
+// === DEFAULT CONFIG (matches current detector.js values exactly) ===
+const DEFAULT_CONFIG = {
+  // Decision thresholds
+  blurThreshold: 45,
+  blockThreshold: 80,
+
+  // YCrCb skin detection
+  ycrcb_crMin: 133,
+  ycrcb_crMax: 173,
+  ycrcb_cbMin: 77,
+  ycrcb_cbMax: 127,
+  ycrcb_yMin: 30,
+  ycrcb_rMin: 40,
+  ycrcb_gMin: 20,
+  ycrcb_bMin: 20,
+
+  // Texture variance filter — removes flat-shaded clothing from skin map
+  texture_minVariance: 3.0,   // Min Cr std dev to keep a skin pixel (lower = more aggressive filtering)
+  texture_neighborRadius: 3,  // Half-size of check window (3 = 7×7 neighborhood)
+
+  // RGB realistic skin
+  rgb_rMin: 0.35,
+  rgb_rMax: 0.95,
+  rgb_gMin: 0.25,
+  rgb_gMax: 0.85,
+  rgb_bMin: 0.15,
+  rgb_bMax: 0.75,
+  rgb_rbDiffMin: 0.05,
+  rgb_rbDiffMax: 0.45,
+  rgb_rgDiffMin: 0.02,
+  rgb_rgDiffMax: 0.25,
+  rgb_gbDiffMin: 0.02,
+  rgb_gbDiffMax: 0.25,
+
+  // COCO-SSD
+  coco_confidence: 0.3,
+
+  // Face exclusion multipliers (applied to face bbox width/height)
+  face_widthMult: 1.2,
+  face_heightMult: 1.3,
+
+  // Zone weight multipliers (1.0 = default contribution)
+  zoneWeight_shoulders: 1.0,
+  zoneWeight_chest: 1.0,
+  zoneWeight_waist: 1.0,
+  zoneWeight_hips: 1.0,
+  zoneWeight_thighs: 1.0,
+  zoneWeight_calves: 1.0,
+  zoneWeight_feet: 1.0,
+
+  // Score ladder skin ratio thresholds
+  ladder_veryHigh: 0.50,
+  ladder_high: 0.35,
+  ladder_modMidLow: 0.25,
+  ladder_moderate: 0.25,
+  ladder_some: 0.15,
+
+  // Score ladder base scores
+  ladderScore_veryHigh: 85,
+  ladderScore_high: 70,
+  ladderScore_moderate: 50,
+  ladderScore_some: 30,
+  ladderScore_minimal: 10,
+
+  // Zone boost values
+  zoneBoost_chestHigh: 20,
+  zoneBoost_chestPartial: 10,
+  zoneBoost_waistHigh: 15,
+  zoneBoost_waistPartial: 8,
+  zoneBoost_hipsHigh: 15,
+  zoneBoost_hipsPartial: 8,
+  zoneBoost_thighsHigh: 20,
+  zoneBoost_thighsPartial: 10,
+  zoneBoost_multiZone4: 15,
+  zoneBoost_multiZone3: 10,
+  zoneBoost_multiZone2: 5,
+
+  // Portrait face ratio threshold
+  portrait_faceRatio: 0.15
+};
+
+// Active config (will be modified by sliders)
+let activeConfig = JSON.parse(JSON.stringify(DEFAULT_CONFIG));
+
+// Original results cache (from Phase 1 analysis)
+let cachedOriginalResult = null;
+let cachedModelOutputs = null; // {cocoPredictions, faceData, poseData, personBboxes, sceneObjects, personCount}
+let comparisonActive = false;
+
+// === SLIDER DEFINITIONS ===
+const SLIDER_DEFS = {
+  slidersThresholds: [
+    { key: 'blurThreshold', label: 'Blur Threshold', min: 0, max: 100, step: 1 },
+    { key: 'blockThreshold', label: 'Block Threshold', min: 0, max: 100, step: 1 }
+  ],
+  slidersYCrCb: [
+    { key: 'ycrcb_crMin', label: 'Cr Min', min: 100, max: 180, step: 1 },
+    { key: 'ycrcb_crMax', label: 'Cr Max', min: 140, max: 200, step: 1 },
+    { key: 'ycrcb_cbMin', label: 'Cb Min', min: 50, max: 130, step: 1 },
+    { key: 'ycrcb_cbMax', label: 'Cb Max', min: 100, max: 160, step: 1 },
+    { key: 'ycrcb_yMin', label: 'Y Minimum', min: 0, max: 80, step: 1 },
+    { key: 'ycrcb_rMin', label: 'R Channel Min', min: 0, max: 100, step: 1 },
+    { key: 'ycrcb_gMin', label: 'G Channel Min', min: 0, max: 80, step: 1 },
+    { key: 'ycrcb_bMin', label: 'B Channel Min', min: 0, max: 80, step: 1 }
+  ],
+  slidersTexture: [
+    { key: 'texture_minVariance', label: 'Min Cr Variance', min: 0, max: 15, step: 0.5 },
+    { key: 'texture_neighborRadius', label: 'Neighbor Radius', min: 1, max: 6, step: 1 }
+  ],
+  slidersRGB: [
+    { key: 'rgb_rMin', label: 'R Min', min: 0, max: 1, step: 0.01 },
+    { key: 'rgb_rMax', label: 'R Max', min: 0.5, max: 1, step: 0.01 },
+    { key: 'rgb_gMin', label: 'G Min', min: 0, max: 1, step: 0.01 },
+    { key: 'rgb_gMax', label: 'G Max', min: 0.5, max: 1, step: 0.01 },
+    { key: 'rgb_bMin', label: 'B Min', min: 0, max: 1, step: 0.01 },
+    { key: 'rgb_bMax', label: 'B Max', min: 0.3, max: 1, step: 0.01 },
+    { key: 'rgb_rbDiffMin', label: 'R-B Diff Min', min: 0, max: 0.5, step: 0.01 },
+    { key: 'rgb_rbDiffMax', label: 'R-B Diff Max', min: 0.1, max: 0.8, step: 0.01 },
+    { key: 'rgb_rgDiffMin', label: 'R-G Diff Min', min: 0, max: 0.3, step: 0.01 },
+    { key: 'rgb_rgDiffMax', label: 'R-G Diff Max', min: 0.05, max: 0.5, step: 0.01 },
+    { key: 'rgb_gbDiffMin', label: 'G-B Diff Min', min: 0, max: 0.3, step: 0.01 },
+    { key: 'rgb_gbDiffMax', label: 'G-B Diff Max', min: 0.05, max: 0.5, step: 0.01 }
+  ],
+  slidersCoco: [
+    { key: 'coco_confidence', label: 'Min Confidence', min: 0.1, max: 0.9, step: 0.05 }
+  ],
+  slidersFace: [
+    { key: 'face_widthMult', label: 'Width Multiplier', min: 0.5, max: 2.5, step: 0.1 },
+    { key: 'face_heightMult', label: 'Height Multiplier', min: 0.5, max: 2.5, step: 0.1 },
+    { key: 'portrait_faceRatio', label: 'Portrait Face Ratio', min: 0.05, max: 0.40, step: 0.01 }
+  ],
+  slidersZones: [
+    { key: 'zoneWeight_shoulders', label: 'Shoulders', min: 0, max: 3, step: 0.1 },
+    { key: 'zoneWeight_chest', label: 'Chest', min: 0, max: 3, step: 0.1 },
+    { key: 'zoneWeight_waist', label: 'Waist', min: 0, max: 3, step: 0.1 },
+    { key: 'zoneWeight_hips', label: 'Hips', min: 0, max: 3, step: 0.1 },
+    { key: 'zoneWeight_thighs', label: 'Thighs', min: 0, max: 3, step: 0.1 },
+    { key: 'zoneWeight_calves', label: 'Calves', min: 0, max: 3, step: 0.1 },
+    { key: 'zoneWeight_feet', label: 'Feet', min: 0, max: 3, step: 0.1 }
+  ],
+  slidersScoreLadder: [
+    { key: 'ladder_veryHigh', label: 'Very High Skin', min: 0.2, max: 0.8, step: 0.01 },
+    { key: 'ladder_high', label: 'High Skin', min: 0.15, max: 0.6, step: 0.01 },
+    { key: 'ladder_moderate', label: 'Moderate Skin', min: 0.1, max: 0.5, step: 0.01 },
+    { key: 'ladder_some', label: 'Some Skin', min: 0.05, max: 0.4, step: 0.01 },
+    { key: 'ladderScore_veryHigh', label: 'Score: Very High', min: 0, max: 100, step: 1 },
+    { key: 'ladderScore_high', label: 'Score: High', min: 0, max: 100, step: 1 },
+    { key: 'ladderScore_moderate', label: 'Score: Moderate', min: 0, max: 100, step: 1 },
+    { key: 'ladderScore_some', label: 'Score: Some', min: 0, max: 100, step: 1 },
+    { key: 'ladderScore_minimal', label: 'Score: Minimal', min: 0, max: 100, step: 1 }
+  ],
+  slidersZoneBoosts: [
+    { key: 'zoneBoost_chestHigh', label: 'Chest (>40%)', min: 0, max: 40, step: 1 },
+    { key: 'zoneBoost_chestPartial', label: 'Chest (>25%)', min: 0, max: 30, step: 1 },
+    { key: 'zoneBoost_waistHigh', label: 'Waist (>40%)', min: 0, max: 30, step: 1 },
+    { key: 'zoneBoost_waistPartial', label: 'Waist (>25%)', min: 0, max: 20, step: 1 },
+    { key: 'zoneBoost_hipsHigh', label: 'Hips (>40%)', min: 0, max: 30, step: 1 },
+    { key: 'zoneBoost_hipsPartial', label: 'Hips (>25%)', min: 0, max: 20, step: 1 },
+    { key: 'zoneBoost_thighsHigh', label: 'Thighs (>40%)', min: 0, max: 40, step: 1 },
+    { key: 'zoneBoost_thighsPartial', label: 'Thighs (>25%)', min: 0, max: 30, step: 1 },
+    { key: 'zoneBoost_multiZone4', label: '4+ Zones Exposed', min: 0, max: 30, step: 1 },
+    { key: 'zoneBoost_multiZone3', label: '3 Zones Exposed', min: 0, max: 20, step: 1 },
+    { key: 'zoneBoost_multiZone2', label: '2 Zones Exposed', min: 0, max: 15, step: 1 }
+  ]
+};
+
+// === BUILD SLIDER UI ===
+function buildSliders() {
+  for (const [containerId, defs] of Object.entries(SLIDER_DEFS)) {
+    const container = document.getElementById(containerId);
+    if (!container) continue;
+    for (const def of defs) {
+      const row = document.createElement('div');
+      row.className = 'slider-row';
+      const isFloat = def.step < 1;
+      const displayVal = isFloat ? activeConfig[def.key].toFixed(2) : activeConfig[def.key];
+      row.innerHTML =
+        '<div class="slider-label"><span class="name">' + def.label + '</span><span class="val" id="val-' + def.key + '">' + displayVal + '</span></div>' +
+        '<input type="range" id="slider-' + def.key + '" min="' + def.min + '" max="' + def.max + '" step="' + def.step + '" value="' + activeConfig[def.key] + '" data-key="' + def.key + '" data-default="' + DEFAULT_CONFIG[def.key] + '">';
+      container.appendChild(row);
+
+      const slider = row.querySelector('input[type="range"]');
+      slider.addEventListener('input', onSliderInput);
+    }
+  }
+}
+
+function onSliderInput(e) {
+  const key = e.target.dataset.key;
+  const def = e.target.dataset.default;
+  const val = parseFloat(e.target.value);
+  activeConfig[key] = val;
+
+  // Update display
+  const isFloat = parseFloat(e.target.step) < 1;
+  document.getElementById('val-' + key).textContent = isFloat ? val.toFixed(2) : val;
+
+  // Mark modified
+  if (Math.abs(val - parseFloat(def)) > parseFloat(e.target.step) * 0.5) {
+    e.target.classList.add('modified');
+  } else {
+    e.target.classList.remove('modified');
+  }
+
+  // Debounced recalculation
+  scheduleRecalc();
+}
+
+let recalcTimer = null;
+function scheduleRecalc() {
+  if (recalcTimer) clearTimeout(recalcTimer);
+  recalcTimer = setTimeout(() => {
+    if (currentImage && cachedModelOutputs) {
+      reanalyzeWithConfig();
+    }
+  }, 150);
+}
+
+// === COLLAPSIBLE SLIDER GROUPS ===
+function setupSliderGroups() {
+  document.querySelectorAll('.slider-group-header').forEach(header => {
+    header.addEventListener('click', () => {
+      header.parentElement.classList.toggle('open');
+    });
+  });
+}
+
+// === RE-ANALYSIS WITH ADJUSTED CONFIG ===
+// Re-runs pixel analysis + scoring using cached model data and current activeConfig
+async function reanalyzeWithConfig() {
+  if (!currentImage || !cachedModelOutputs) return;
+
+  const img = currentImage;
+  let { personBboxes, sceneObjects, personCount, faceData, poseData, clothingData } = cachedModelOutputs;
+
+  // Read instrument toggles and null out disabled instruments
+  const inst = getInstrumentToggles();
+  if (!inst.coco) {
+    personBboxes = null;
+    personCount = 0;
+  }
+  if (!inst.blazeface && faceData) {
+    faceData = null;
+  }
+  if (!inst.blazepose) {
+    poseData = null;
+  }
+  if (!inst.clothing) {
+    clothingData = [];
+  }
+
+  // Build a config-aware detector
+  const detector = new SafeScrollDetectorWorkbench();
+  detector.thresholds = { blur: activeConfig.blurThreshold, block: activeConfig.blockThreshold };
+
+  // Override skin detection methods with config values + instrument toggles
+  detector.isRealisticSkinYCrCb = function(r255, g255, b255) {
+    if (!inst.skinYCrCb) return false;
+    const c = activeConfig;
+    if (r255 < c.ycrcb_rMin || g255 < c.ycrcb_gMin || b255 < c.ycrcb_bMin) return false;
+    if (r255 < g255) return false;
+    const y = Math.round(0.299 * r255 + 0.587 * g255 + 0.114 * b255);
+    const cr = Math.round((r255 - y) * 0.713 + 128);
+    const cb = Math.round((b255 - y) * 0.564 + 128);
+    if (cr < c.ycrcb_crMin || cr > c.ycrcb_crMax) return false;
+    if (cb < c.ycrcb_cbMin || cb > c.ycrcb_cbMax) return false;
+    if (y < c.ycrcb_yMin) return false;
+    return true;
+  };
+
+  detector.isRealisticSkin = function(r, g, b) {
+    if (!inst.skinRGB) return false;
+    const c = activeConfig;
+    if (!(r > c.rgb_rMin && r < c.rgb_rMax && g > c.rgb_gMin && g < c.rgb_gMax && b > c.rgb_bMin && b < c.rgb_bMax)) return false;
+    if (!(r > g && g > b)) return false;
+    if (Math.abs(g - b) < 0.04) return false;
+    const rb = r - b;
+    if (rb < c.rgb_rbDiffMin || rb > c.rgb_rbDiffMax) return false;
+    const rg = r - g;
+    if (rg < c.rgb_rgDiffMin || rg > c.rgb_rgDiffMax) return false;
+    const gb = g - b;
+    if (gb < c.rgb_gbDiffMin || gb > c.rgb_gbDiffMax) return false;
+    if (Math.max(r, g, b) - Math.min(r, g, b) < 0.05) return false;
+    return true;
+  };
+
+  // Store instrument toggles on detector for analyzeImageFullConfigurable
+  detector._instrumentToggles = inst;
+
+  // Run configurable analysis with current slider config
+  const result = await detector.analyzeImageFullConfigurable(
+    img, personBboxes, sceneObjects, personCount, faceData, poseData, activeConfig, clothingData
+  );
+
+  // Update overlay data from adjusted result
+  if (result._overlayData) {
+    overlayData.skinMap = result._overlayData.skinMap;
+    overlayData.exclusionMask = result._overlayData.exclusionMask;
+    overlayData.bboxMask = result._overlayData.bboxMask;
+    overlayData.bodyZones = result._overlayData.bodyZones;
+    if (result._overlayData.clothingOverride) {
+      overlayData.clothingOverride = result._overlayData.clothingOverride;
+    }
+  }
+
+  currentResults = result;
+  drawOverlays();
+  showResults(result);
+
+  // Update comparison if active
+  if (comparisonActive) {
+    drawComparisonOverlays(result);
+    updateAdjustedScore(result);
+  }
+}
+
+// === COMPARISON MODE ===
+function toggleComparison() {
+  comparisonActive = !comparisonActive;
+  const mainEl = document.querySelector('.main');
+  const btn = document.getElementById('btnComparison');
+
+  if (comparisonActive) {
+    mainEl.classList.add('comparison-mode');
+    btn.classList.add('active');
+    btn.textContent = 'Single View';
+    if (currentImage) setupComparisonCanvases();
+  } else {
+    mainEl.classList.remove('comparison-mode');
+    btn.classList.remove('active');
+    btn.textContent = 'Compare';
+    // Refresh main display
+    if (currentImage && cachedModelOutputs) {
+      drawOverlays();
+      if (currentResults) showResults(currentResults);
+    }
+  }
+}
+
+function setupComparisonCanvases() {
+  const img = currentImage;
+  if (!img) return;
+
+  // Size both sides — canvas pair wrapped in a relative container
+  for (const prefix of ['orig', 'adj']) {
+    const side = document.getElementById(prefix === 'orig' ? 'originalSide' : 'adjustedSide');
+    const rect = side.getBoundingClientRect();
+    const maxW = rect.width - 10;
+    const maxH = rect.height - 50; // room for labels
+    const scale = Math.min(maxW / img.naturalWidth, maxH / img.naturalHeight, 1);
+    const drawW = Math.round(img.naturalWidth * scale);
+    const drawH = Math.round(img.naturalHeight * scale);
+
+    const base = document.getElementById(prefix + 'BaseCanvas');
+    const over = document.getElementById(prefix + 'OverlayCanvas');
+    base.width = drawW; base.height = drawH;
+    over.width = drawW; over.height = drawH;
+    over.style.width = drawW + 'px';
+    over.style.height = drawH + 'px';
+    base.getContext('2d').drawImage(img, 0, 0, drawW, drawH);
+  }
+
+  // Draw original overlays on left side
+  drawOverlaysOnCanvas('origOverlayCanvas', overlayData, document.getElementById('origBaseCanvas').width, document.getElementById('origBaseCanvas').height);
+
+  // Show original score
+  if (cachedOriginalResult) {
+    const el = document.getElementById('origScore');
+    el.textContent = cachedOriginalResult.score;
+    el.style.color = cachedOriginalResult.score >= 80 ? '#e94560' : cachedOriginalResult.score >= 45 ? '#f0a500' : '#4CAF50';
+  }
+
+  // Run adjusted analysis
+  if (cachedModelOutputs) reanalyzeWithConfig();
+}
+
+function drawComparisonOverlays(adjResult) {
+  const adjCanvas = document.getElementById('adjOverlayCanvas');
+  const w = adjCanvas.width, h = adjCanvas.height;
+
+  // Build adjusted overlay data
+  const adjOverlay = {
+    cocoPredictions: overlayData.cocoPredictions,
+    faces: overlayData.faces,
+    poseKeypoints: overlayData.poseKeypoints,
+    skinMap: adjResult._overlayData.skinMap,
+    exclusionMask: adjResult._overlayData.exclusionMask,
+    bboxMask: adjResult._overlayData.bboxMask,
+    bodyZones: adjResult._overlayData.bodyZones,
+    personBboxes: overlayData.personBboxes,
+    imageWidth: w,
+    imageHeight: h,
+    analysisWidth: 299,
+    analysisHeight: 299
+  };
+
+  drawOverlaysOnCanvas('adjOverlayCanvas', adjOverlay, w, h);
+}
+
+function updateAdjustedScore(result) {
+  const el = document.getElementById('adjScore');
+  el.textContent = result.score;
+  el.style.color = result.score >= 80 ? '#e94560' : result.score >= 45 ? '#f0a500' : '#4CAF50';
+
+  // Also update the main results panel
+  showResults(result);
+}
+
+// Generic overlay drawer — draws on any named canvas using given overlay data
+function drawOverlaysOnCanvas(canvasId, data, w, h) {
+  const canvas = document.getElementById(canvasId);
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, w, h);
+
+  const imgNatW = currentImage.naturalWidth;
+  const imgNatH = currentImage.naturalHeight;
+  const anlScaleX = w / 299;
+  const anlScaleY = h / 299;
+  const detScale = Math.min(300 / imgNatW, 300 / imgNatH, 1);
+  const detW = Math.round(imgNatW * detScale);
+  const detH = Math.round(imgNatH * detScale);
+  const detDispScaleX = w / detW;
+  const detDispScaleY = h / detH;
+
+  // BBox mask
+  if (document.getElementById('layer-bbox-mask').checked && data.bboxMask) {
+    ctx.fillStyle = 'rgba(0, 255, 0, 0.12)';
+    for (let y = 0; y < 299; y++)
+      for (let x = 0; x < 299; x++)
+        if (data.bboxMask[y * 299 + x] === 1)
+          ctx.fillRect(x * anlScaleX, y * anlScaleY, anlScaleX + 0.5, anlScaleY + 0.5);
+  }
+
+  // Skin
+  if (document.getElementById('layer-skin').checked && data.skinMap) {
+    ctx.fillStyle = 'rgba(255, 50, 50, 0.35)';
+    for (let y = 0; y < 299; y++)
+      for (let x = 0; x < 299; x++)
+        if (data.skinMap[y * 299 + x] === 1)
+          ctx.fillRect(x * anlScaleX, y * anlScaleY, anlScaleX + 0.5, anlScaleY + 0.5);
+  }
+
+  // Exclusion
+  if (document.getElementById('layer-exclusion').checked && data.exclusionMask) {
+    ctx.fillStyle = 'rgba(50, 50, 255, 0.3)';
+    for (let y = 0; y < 299; y++)
+      for (let x = 0; x < 299; x++)
+        if (data.exclusionMask[y * 299 + x] === 1)
+          ctx.fillRect(x * anlScaleX, y * anlScaleY, anlScaleX + 0.5, anlScaleY + 0.5);
+  }
+  // COCO-SSD
+  if (document.getElementById('layer-coco').checked && data.cocoPredictions) {
+    const useOutline = document.getElementById('layer-body-outline').checked;
+    ctx.strokeStyle = '#00ff88'; ctx.lineWidth = 2; ctx.font = '11px monospace';
+    for (const pred of data.cocoPredictions) {
+      const [bx, by, bw, bh] = pred.bbox;
+      let drewPolygon = false;
+      if (useOutline && pred.class === 'person' && data.poseKeypoints && data.poseKeypoints.length > 0) {
+        drewPolygon = drawBodyOutlinePolygon(ctx, data.poseKeypoints, detDispScaleX, detDispScaleY, bx, by, bw, bh);
+      }
+      if (!drewPolygon) {
+        ctx.strokeRect(bx * detDispScaleX, by * detDispScaleY, bw * detDispScaleX, bh * detDispScaleY);
+      }
+      const label = pred.class + ' ' + (pred.score * 100).toFixed(0) + '%';
+      ctx.fillStyle = 'rgba(0,0,0,0.7)';
+      ctx.fillRect(bx * detDispScaleX, by * detDispScaleY - 14, ctx.measureText(label).width + 6, 14);
+      ctx.fillStyle = '#00ff88';
+      ctx.fillText(label, bx * detDispScaleX + 3, by * detDispScaleY - 3);
+    }
+  }
+
+  // Faces
+  if (document.getElementById('layer-face').checked) {
+    ctx.strokeStyle = '#00bfff'; ctx.lineWidth = 2; ctx.font = '10px monospace';
+    if (data.faces) {
+      for (const face of data.faces) {
+        ctx.strokeRect(face.topLeft[0] * detDispScaleX, face.topLeft[1] * detDispScaleY,
+                       face.width * detDispScaleX, face.height * detDispScaleY);
+      }
+    }
+    }
+  }
+
+  // Pose
+  if (document.getElementById('layer-pose').checked && data.poseKeypoints && data.poseKeypoints.length > 0) {
+    const kpMap = {};
+    for (const kp of data.poseKeypoints) kpMap[kp.name] = kp;
+    const connections = [
+      ['left_shoulder', 'right_shoulder'], ['left_shoulder', 'left_elbow'],
+      ['left_elbow', 'left_wrist'], ['right_shoulder', 'right_elbow'],
+      ['right_elbow', 'right_wrist'], ['left_shoulder', 'left_hip'],
+      ['right_shoulder', 'right_hip'], ['left_hip', 'right_hip'],
+      ['left_hip', 'left_knee'], ['left_knee', 'left_ankle'],
+      ['right_hip', 'right_knee'], ['right_knee', 'right_ankle']
+    ];
+    ctx.strokeStyle = '#ff6ec7'; ctx.lineWidth = 1.5;
+    for (const [a, b] of connections) {
+      const pa = kpMap[a], pb = kpMap[b];
+      if (pa && pb && pa.score > 0.3 && pb.score > 0.3) {
+        ctx.beginPath();
+        ctx.moveTo(pa.x * detDispScaleX, pa.y * detDispScaleY);
+        ctx.lineTo(pb.x * detDispScaleX, pb.y * detDispScaleY);
+        ctx.stroke();
+      }
+    }
+    for (const kp of data.poseKeypoints) {
+      if (kp.score > 0.3) {
+        ctx.fillStyle = '#ff6ec7';
+        ctx.beginPath();
+        ctx.arc(kp.x * detDispScaleX, kp.y * detDispScaleY, 2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+  }
+
+  // Zones
+  if (document.getElementById('layer-zones').checked && data.bodyZones) {
+    const zoneNames = ['head', 'shoulders', 'chest', 'waist', 'hips', 'thighs', 'calves', 'feet'];
+    const zoneColors = {
+      head: 'rgba(200,200,255,0.25)',
+      shoulders: 'rgba(100,200,255,0.25)', chest: 'rgba(255,100,100,0.25)',
+      waist: 'rgba(255,200,50,0.25)', hips: 'rgba(200,100,255,0.25)',
+      thighs: 'rgba(255,150,50,0.25)', calves: 'rgba(100,255,200,0.25)',
+      feet: 'rgba(200,200,200,0.25)'
+    };
+    ctx.font = '9px monospace';
+    for (const name of zoneNames) {
+      const zone = data.bodyZones[name];
+      if (!zone || !zone.bounds) continue;
+      const b = zone.bounds;
+      ctx.fillStyle = zoneColors[name];
+      ctx.fillRect(b.left * anlScaleX, b.top * anlScaleY,
+                   (b.right - b.left) * anlScaleX, (b.bottom - b.top) * anlScaleY);
+      ctx.strokeStyle = 'rgba(255,255,255,0.4)'; ctx.lineWidth = 0.5;
+      ctx.strokeRect(b.left * anlScaleX, b.top * anlScaleY,
+                     (b.right - b.left) * anlScaleX, (b.bottom - b.top) * anlScaleY);
+    }
+  }
+}
+
+// === CONFIGURABLE ANALYSIS METHOD ===
+// Added to the workbench detector — same as analyzeImageFull but reads from config
+SafeScrollDetectorWorkbench.prototype.analyzeImageFullConfigurable = async function(img, personBboxes, sceneObjects, personCount, faceData, poseData, config, clothingData) {
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d');
+  canvas.width = 299; canvas.height = 299;
+  ctx.drawImage(img, 0, 0, 299, 299);
+  const imageData = ctx.getImageData(0, 0, 299, 299);
+  const pixels = imageData.data;
+
+  const _overlayData = { skinMap: null, exclusionMask: null, bboxMask: null, bodyZones: null };
+
+  const inst = this._instrumentToggles || { coco: true, blazeface: true, blazepose: true, skinYCrCb: true, skinRGB: true, exclusion: true, bboxMask: true, clothing: true };
+
+  // BBox masking (same logic) — skipped if inst.bboxMask disabled
+  if (inst.bboxMask && personBboxes && personBboxes.boxes.length > 0) {
+    const scaleX = 299 / personBboxes.sourceWidth;
+    const scaleY = 299 / personBboxes.sourceHeight;
+    const scaledBoxes = personBboxes.boxes.map(bbox => {
+      const bx = Math.max(0, Math.floor(bbox[0] * scaleX));
+      const by = Math.max(0, Math.floor(bbox[1] * scaleY));
+      const bw = Math.min(299 - bx, Math.ceil(bbox[2] * scaleX));
+      const bh = Math.min(299 - by, Math.ceil(bbox[3] * scaleY));
+      return { x: bx, y: by, w: bw, h: bh };
+    });
+    const mask = new Uint8Array(299 * 299);
+    for (const box of scaledBoxes) {
+      for (let y = box.y; y < box.y + box.h && y < 299; y++)
+        for (let x = box.x; x < box.x + box.w && x < 299; x++)
+          mask[y * 299 + x] = 1;
+    }
+    _overlayData.bboxMask = mask;
+    for (let i = 0; i < 299 * 299; i++) {
+      if (mask[i] === 0) { pixels[i*4] = 0; pixels[i*4+1] = 0; pixels[i*4+2] = 0; }
+    }
+  }
+
+  // Face + arm exclusion with config multipliers — skipped if inst.exclusion disabled
+  const exclusionMask = new Uint8Array(299 * 299);
+  if (inst.exclusion && (faceData || poseData)) {
+    const faceScaleX = faceData ? 299 / (Math.round(Math.min(300 / faceData.imageWidth, 1) * faceData.imageWidth)) : 1;
+    const faceScaleY = faceData ? 299 / (Math.round(Math.min(300 / faceData.imageHeight, 1) * faceData.imageHeight)) : 1;
+    const poseW = poseData ? (poseData.imageWidth || 299) : 299;
+    const poseH = poseData ? (poseData.imageHeight || 299) : 299;
+    const poseScaleX = 299 / poseW;
+    const poseScaleY = 299 / poseH;
+
+    function excludeRect(x, y, w, h) {
+      const x0 = Math.max(0, Math.floor(x)), y0 = Math.max(0, Math.floor(y));
+      const x1 = Math.min(299, Math.ceil(x + w)), y1 = Math.min(299, Math.ceil(y + h));
+      for (let ey = y0; ey < y1; ey++) for (let ex = x0; ex < x1; ex++) exclusionMask[ey * 299 + ex] = 1;
+    }
+    function excludeCircle(cx, cy, radius) {
+      const r2 = radius * radius;
+      const x0 = Math.max(0, Math.floor(cx - radius)), y0 = Math.max(0, Math.floor(cy - radius));
+      const x1 = Math.min(299, Math.ceil(cx + radius)), y1 = Math.min(299, Math.ceil(cy + radius));
+      for (let ey = y0; ey < y1; ey++) for (let ex = x0; ex < x1; ex++)
+        if ((ex-cx)*(ex-cx) + (ey-cy)*(ey-cy) <= r2) exclusionMask[ey * 299 + ex] = 1;
+    }
+    function excludeThickLine(x1, y1, x2, y2, thickness) {
+      const dx = x2 - x1, dy = y2 - y1, lenSq = dx*dx + dy*dy;
+      const ex0 = Math.max(0, Math.floor(Math.min(x1,x2)-thickness));
+      const ey0 = Math.max(0, Math.floor(Math.min(y1,y2)-thickness));
+      const ex1 = Math.min(299, Math.ceil(Math.max(x1,x2)+thickness));
+      const ey1 = Math.min(299, Math.ceil(Math.max(y1,y2)+thickness));
+      for (let ey = ey0; ey < ey1; ey++) for (let ex = ex0; ex < ex1; ex++) {
+        let dist;
+        if (lenSq === 0) dist = Math.sqrt((ex-x1)**2 + (ey-y1)**2);
+        else { let t = Math.max(0, Math.min(1, ((ex-x1)*dx + (ey-y1)*dy) / lenSq));
+               dist = Math.sqrt((ex - (x1+t*dx))**2 + (ey - (y1+t*dy))**2); }
+        if (dist <= thickness) exclusionMask[ey * 299 + ex] = 1;
+      }
+    }
+
+    // Face exclusion — use config multipliers
+    if (faceData && faceData.faces) {
+      for (const face of faceData.faces) {
+        const fx = face.topLeft[0] * faceScaleX;
+        const fy = face.topLeft[1] * faceScaleY;
+        const fw = face.width * faceScaleX;
+        const fh = face.height * faceScaleY;
+        const wPad = (config.face_widthMult - 1.0) / 2;
+        excludeRect(fx - fw * wPad, fy, fw * config.face_widthMult, fh * config.face_heightMult);
+      }
+    }
+
+    // Arm exclusion (same as original)
+    if (poseData && poseData.keypoints && poseData.keypoints.length >= 33) {
+      const kp = {};
+      for (const k of poseData.keypoints) kp[k.name] = k;
+      const CONF = 0.5;
+      const armThickness = 299 * 0.08;
+      const handRadius = 299 * 0.05;
+      const armPairs = [['left_shoulder','left_elbow'],['left_elbow','left_wrist'],['right_shoulder','right_elbow'],['right_elbow','right_wrist']];
+      for (const [a, b] of armPairs) {
+        if (kp[a] && kp[b] && kp[a].score >= CONF && kp[b].score >= CONF)
+          excludeThickLine(kp[a].x*poseScaleX, kp[a].y*poseScaleY, kp[b].x*poseScaleX, kp[b].y*poseScaleY, armThickness);
+      }
+      for (const wrist of ['left_wrist','right_wrist']) {
+        if (kp[wrist] && kp[wrist].score >= CONF)
+          excludeCircle(kp[wrist].x*poseScaleX, kp[wrist].y*poseScaleY, handRadius);
+      }
+    }
+
+    for (let i = 0; i < 299 * 299; i++) {
+      if (exclusionMask[i] === 1) { pixels[i*4] = 0; pixels[i*4+1] = 0; pixels[i*4+2] = 0; }
+    }
+  }
+  _overlayData.exclusionMask = exclusionMask;
+
+  // Combined analysis — uses overridden skin methods + config edge threshold
+  const combined = this.analyzeCombined(pixels, 299, 299);
+  combined.personCount = personCount;
+
+  _overlayData.skinMap = new Uint8Array(combined._skinMap);
+  // Clothing override (if MobileNet data available and instrument enabled)
+  if (inst.clothing && combined._skinMap && clothingData && clothingData.length > 0 && poseData) {
+    try {
+      const clothingOverride = this.applyClothingOverride(
+        combined._skinMap, combined._skinMapWidth, combined._skinMapHeight,
+        clothingData, poseData, personBboxes
+      );
+      if (clothingOverride) {
+        combined.clothingType = clothingOverride.clothingType;
+        combined.clothingConfidence = clothingOverride.confidence;
+        _overlayData.clothingOverride = clothingOverride;
+        if (clothingOverride.pixelsRemoved > 0) {
+          let newSkinCount = 0;
+          for (let i = 0; i < combined._skinMap.length; i++) {
+            if (combined._skinMap[i]) newSkinCount++;
+          }
+          combined.skinRatio = newSkinCount / (combined._skinMapWidth * combined._skinMapHeight);
+        }
+      }
+    } catch (e) {
+      console.warn('Clothing override error in configurable analysis:', e.message);
+    }
+  }
+
+  if (combined._skinMap && poseData) {
+    const bodyZones = this.measureBodyPartZones(combined._skinMap, combined._skinMapWidth, combined._skinMapHeight, poseData);
+    if (bodyZones) { combined.bodyZones = bodyZones; _overlayData.bodyZones = bodyZones; }
+  }
+  delete combined._skinMap; delete combined._skinMapWidth; delete combined._skinMapHeight;
+
+  // Score calculation with config
+  const score = this.calculateScoreConfigurable(combined, false, sceneObjects, faceData, poseData, config);
+
+  let decision, action;
+  if (score >= config.blockThreshold) { decision = 'BLOCKED'; action = 'block'; }
+  else if (score >= config.blurThreshold) { decision = 'BLURRED'; action = 'blur'; }
+  else { decision = 'ALLOWED'; action = 'allow'; }
+
+  return {
+    score, decision, action, reason: combined.reason,
+    sceneObjects: sceneObjects || [], personCount,
+    skinRatio: combined.skinRatio, upperRatio: combined.upperRatio,
+    middleRatio: combined.middleRatio, lowerRatio: combined.lowerRatio,
+    hasBodyShape: combined.hasBodyShape,
+    skinClusterCount: combined.skinClusterCount,
+    largestClusterRatio: combined.largestClusterRatio,
+    largestClusterSmoothness: combined.largestClusterSmoothness,
+    uniformRatio: combined.uniformRatio, sceneContext: combined.sceneContext,
+    bodyZones: combined.bodyZones,
+    _overlayData
+  };
+};
+
+// === CONFIGURABLE analyzeCombined ===
+SafeScrollDetectorWorkbench.prototype.analyzeCombinedConfigurable = function(pixels, width, height, config) {
+  return this.analyzeCombined(pixels, width, height);
+};
+// === CONFIGURABLE calculateScore — uses config for ladder + zone boosts ===
+SafeScrollDetectorWorkbench.prototype.calculateScoreConfigurable = function(analysis, isVideo, sceneObjects, faceData, poseData, config) {
+  // Call the original calculateScore (inherits all the complex logic)
+  // Then apply config overrides for the score ladder and zone boosts
+  // Since the original has deeply embedded constants, we'll patch the analysis object
+  // to reflect config-adjusted zone weights, then call original
+
+  // Apply zone weight multipliers to body zone skin ratios
+  if (analysis.bodyZones) {
+    const zoneNames = ['shoulders', 'chest', 'waist', 'hips', 'thighs', 'calves', 'feet'];
+    for (const name of zoneNames) {
+      if (analysis.bodyZones[name]) {
+        const weightKey = 'zoneWeight_' + name;
+        analysis.bodyZones[name]._originalSkinRatio = analysis.bodyZones[name]._originalSkinRatio || analysis.bodyZones[name].skinRatio;
+        analysis.bodyZones[name].skinRatio = analysis.bodyZones[name]._originalSkinRatio * config[weightKey];
+      }
+    }
+    // Recalculate summary
+    let exposedZones = [], highExposureZones = [];
+    for (const name of zoneNames) {
+      if (analysis.bodyZones[name]) {
+        if (analysis.bodyZones[name].skinRatio > 0.25) exposedZones.push(name);
+        if (analysis.bodyZones[name].skinRatio > 0.50) highExposureZones.push(name);
+      }
+    }
+    analysis.bodyZones._summary = analysis.bodyZones._summary || {};
+    analysis.bodyZones._summary.exposedZones = exposedZones;
+    analysis.bodyZones._summary.exposedZoneCount = exposedZones.length;
+    analysis.bodyZones._summary.highExposureZones = highExposureZones;
+    analysis.bodyZones._summary.highExposureCount = highExposureZones.length;
+    analysis.bodyZones._summary.hasChestExposure = analysis.bodyZones.chest ? analysis.bodyZones.chest.skinRatio > 0.25 : false;
+    analysis.bodyZones._summary.hasWaistExposure = analysis.bodyZones.waist ? analysis.bodyZones.waist.skinRatio > 0.25 : false;
+    analysis.bodyZones._summary.hasHipExposure = analysis.bodyZones.hips ? analysis.bodyZones.hips.skinRatio > 0.25 : false;
+    analysis.bodyZones._summary.hasThighExposure = analysis.bodyZones.thighs ? analysis.bodyZones.thighs.skinRatio > 0.25 : false;
+    analysis.bodyZones._summary.hasCalfExposure = analysis.bodyZones.calves ? analysis.bodyZones.calves.skinRatio > 0.25 : false;
+  }
+
+  // Call original calculateScore with the modified analysis
+  return this.calculateScore(analysis, isVideo, sceneObjects, faceData, poseData);
+};
+
+// === EXPORT CONFIG ===
+function exportConfig() {
+  const changed = {};
+  for (const [key, defaultVal] of Object.entries(DEFAULT_CONFIG)) {
+    if (typeof defaultVal === 'boolean') {
+      if (activeConfig[key] !== defaultVal) changed[key] = activeConfig[key];
+    } else if (Math.abs(activeConfig[key] - defaultVal) > 0.001) {
+      changed[key] = activeConfig[key];
+    }
+  }
+
+  if (Object.keys(changed).length === 0) {
+    alert('No changes to export — all values match defaults.');
+    return;
+  }
+
+  const text = '// SafeScroll Detection Config — Exported from Workbench\n' +
+    '// ' + new Date().toISOString() + '\n' +
+    '// Changed ' + Object.keys(changed).length + ' value(s) from defaults\n\n' +
+    'const WORKBENCH_CONFIG = ' + JSON.stringify(changed, null, 2) + ';\n';
+
+  document.getElementById('exportText').value = text;
+  document.getElementById('exportModal').classList.add('visible');
+}
+
+function resetAllSliders() {
+  activeConfig = JSON.parse(JSON.stringify(DEFAULT_CONFIG));
+  // Reset all slider elements
+  document.querySelectorAll('.slider-row input[type="range"]').forEach(slider => {
+    const key = slider.dataset.key;
+    slider.value = DEFAULT_CONFIG[key];
+    slider.classList.remove('modified');
+    const isFloat = parseFloat(slider.step) < 1;
+    document.getElementById('val-' + key).textContent = isFloat ? DEFAULT_CONFIG[key].toFixed(2) : DEFAULT_CONFIG[key];
+  });
+  scheduleRecalc();
+}
+
+// === CACHE MODEL OUTPUTS ON FIRST ANALYSIS ===
+// Patch the original analyzeImage to cache model outputs
+const _origAnalyzeImage = analyzeImage;
+analyzeImage = async function(img) {
+  await _origAnalyzeImage(img);
+
+  // After analysis, cache the model outputs and original result
+  if (currentResults) {
+    cachedOriginalResult = JSON.parse(JSON.stringify({
+      score: currentResults.score,
+      decision: currentResults.decision,
+      reason: currentResults.reason
+    }));
+    cachedModelOutputs = {
+      cocoPredictions: overlayData.cocoPredictions,
+      faceData: null,
+      poseData: null,
+      personBboxes: null,
+      sceneObjects: currentResults.sceneObjects || [],
+      personCount: currentResults.personCount || 0
+    };
+
+    // Reconstruct faceData from overlayData
+    // Use detection canvas dimensions (max 300x300, aspect-correct), not natural image dimensions
+    const cachedDetScale = Math.min(300 / img.naturalWidth, 300 / img.naturalHeight, 1);
+    const cachedDetW = Math.round(img.naturalWidth * cachedDetScale);
+    const cachedDetH = Math.round(img.naturalHeight * cachedDetScale);
+
+    if (overlayData.faces.length > 0) {
+      cachedModelOutputs.faceData = {
+        faces: overlayData.faces,
+        imageWidth: cachedDetW,
+        imageHeight: cachedDetH
+      };
+    }
+    // Reconstruct poseData from overlayData
+    if (overlayData.poseKeypoints.length > 0) {
+      cachedModelOutputs.poseData = {
+        keypoints: overlayData.poseKeypoints,
+        score: 0.8, // approximate
+        imageWidth: cachedDetW,
+        imageHeight: cachedDetH
+      };
+    }
+
+    // Reconstruct personBboxes from overlayData
+    if (overlayData.personBboxes.length > 0) {
+      const first = overlayData.personBboxes[0];
+      cachedModelOutputs.personBboxes = {
+        boxes: overlayData.personBboxes.map(p => p.bbox),
+        sourceWidth: first.sourceWidth,
+        sourceHeight: first.sourceHeight
+      };
+    }
+    // Cache clothing data for instrument toggles
+    cachedModelOutputs.clothingData = overlayData.clothingData || [];
+
+    console.log('Phase 2: Cached model outputs for live adjustment');
+
+    // If comparison mode is active, set up comparison
+    if (comparisonActive) setupComparisonCanvases();
+  }
+};
+
+// === WIRE UP UI ===
+buildSliders();
+setupSliderGroups();
+
+// Skin anchor checkbox
+
+// Instrument toggle listeners — toggling any instrument triggers re-analysis
+const instrumentIds = ['inst-coco', 'inst-blazeface', 'inst-blazepose',   'inst-skin-ycrcb', 'inst-skin-rgb',   'inst-exclusion', 'inst-bbox-mask', 'inst-clothing'];
+for (const id of instrumentIds) {
+  document.getElementById(id).addEventListener('change', function() {
+    if (cachedModelOutputs && currentImage) reanalyzeWithConfig();
+  });
+}
+
+// Helper to read instrument toggle states
+function getInstrumentToggles() {
+  return {
+    coco: document.getElementById('inst-coco').checked,
+    blazeface: document.getElementById('inst-blazeface').checked,
+    blazepose: document.getElementById('inst-blazepose').checked,
+    skinYCrCb: document.getElementById('inst-skin-ycrcb').checked,
+    skinRGB: document.getElementById('inst-skin-rgb').checked,
+    exclusion: document.getElementById('inst-exclusion').checked,
+    bboxMask: document.getElementById('inst-bbox-mask').checked,
+    clothing: document.getElementById('inst-clothing').checked
+  };
+}
+
+document.getElementById('btnComparison').addEventListener('click', toggleComparison);
+document.getElementById('btnReset').addEventListener('click', resetAllSliders);
+document.getElementById('btnExport').addEventListener('click', exportConfig);
+document.getElementById('btnCloseExport').addEventListener('click', () => {
+  document.getElementById('exportModal').classList.remove('visible');
+});
+document.getElementById('btnCopyExport').addEventListener('click', () => {
+  const textarea = document.getElementById('exportText');
+  textarea.select();
+  document.execCommand('copy');
+  document.getElementById('btnCopyExport').textContent = 'Copied!';
+  setTimeout(() => { document.getElementById('btnCopyExport').textContent = 'Copy to Clipboard'; }, 1500);
+});
+
+// Layer toggles should also update comparison view
+const layerIds = ['layer-coco', 'layer-body-outline', 'layer-face', 'layer-pose', 'layer-clothing', 'layer-skin',
+                  'layer-zones', 'layer-exclusion', 'layer-bbox-mask'];
+for (const id of layerIds) {
+  document.getElementById(id).addEventListener('change', () => {
+    if (comparisonActive && currentImage && cachedOriginalResult) {
+      drawOverlaysOnCanvas('origOverlayCanvas', overlayData,
+        document.getElementById('origBaseCanvas').width, document.getElementById('origBaseCanvas').height);
+      if (cachedModelOutputs) reanalyzeWithConfig();
+    }
+  });
+}
+
+// === PIXEL INSPECTOR ===
+let pixelInspectorActive = false;
+
+document.getElementById('btnPixelInspector').addEventListener('click', function() {
+  pixelInspectorActive = !pixelInspectorActive;
+  this.textContent = pixelInspectorActive ? '🔍 Pixel Inspector: ON' : '🔍 Pixel Inspector: OFF';
+  this.style.background = pixelInspectorActive ? '#4CAF50' : '#e94560';
+  document.getElementById('pixelInspectorPanel').style.display = pixelInspectorActive ? 'block' : 'none';
+  const baseCanvas = document.getElementById('baseCanvas');
+  if (baseCanvas) baseCanvas.style.cursor = pixelInspectorActive ? 'crosshair' : '';
+});
+
+document.getElementById('baseCanvas').addEventListener('click', function(e) {
+  if (!pixelInspectorActive || !currentImage) return;
+  
+  const rect = this.getBoundingClientRect();
+  const clickX = e.clientX - rect.left;
+  const clickY = e.clientY - rect.top;
+  
+  // Map click to 299x299 analysis space
+  const anlX = Math.floor(clickX * 299 / this.width);
+  const anlY = Math.floor(clickY * 299 / this.height);
+  
+  // Get pixel from a fresh 299x299 canvas of the image
+  const tmpCanvas = document.createElement('canvas');
+  tmpCanvas.width = 299; tmpCanvas.height = 299;
+  const tmpCtx = tmpCanvas.getContext('2d');
+  tmpCtx.drawImage(currentImage, 0, 0, 299, 299);
+  const imgData = tmpCtx.getImageData(anlX, anlY, 1, 1).data;
+  const r255 = imgData[0], g255 = imgData[1], b255 = imgData[2];
+  
+  // Normalized 0-1
+  const rN = r255 / 255, gN = g255 / 255, bN = b255 / 255;
+  
+  // HSL
+  const maxC = Math.max(rN, gN, bN), minC = Math.min(rN, gN, bN);
+  const l = (maxC + minC) / 2;
+  let h = 0, s = 0;
+  if (maxC !== minC) {
+    const d = maxC - minC;
+    s = l > 0.5 ? d / (2 - maxC - minC) : d / (maxC + minC);
+    if (maxC === rN) h = ((gN - bN) / d + (gN < bN ? 6 : 0)) / 6;
+    else if (maxC === gN) h = ((bN - rN) / d + 2) / 6;
+    else h = ((rN - gN) / d + 4) / 6;
+  }
+  
+  // YCrCb
+  const y = Math.round(0.299 * r255 + 0.587 * g255 + 0.114 * b255);
+  const cr = Math.round((r255 - y) * 0.713 + 128);
+  const cb = Math.round((b255 - y) * 0.564 + 128);
+  
+  // Display values
+  document.getElementById('pixelCoords').textContent = 'Position: (' + anlX + ', ' + anlY + ') in 299×299';
+  document.getElementById('pixelRGB').innerHTML = 'RGB: <b>' + r255 + ', ' + g255 + ', ' + b255 + '</b> → Norm: ' + rN.toFixed(3) + ', ' + gN.toFixed(3) + ', ' + bN.toFixed(3);
+  document.getElementById('pixelHSL').innerHTML = 'HSL: H=' + h.toFixed(3) + ' S=' + s.toFixed(3) + ' L=' + l.toFixed(3);
+  document.getElementById('pixelYCrCb').innerHTML = 'YCrCb: Y=' + y + ' Cr=' + cr + ' Cb=' + cb;
+  document.getElementById('pixelSwatch').style.background = 'rgb(' + r255 + ',' + g255 + ',' + b255 + ')';
+  
+  // Test each skin detector with detailed reasons
+  // YCrCb test
+  const ycrcbReasons = [];
+  let ycrcbPass = true;
+  if (r255 < 40) { ycrcbReasons.push('R<40 (R=' + r255 + ')'); ycrcbPass = false; }
+  if (g255 < 20) { ycrcbReasons.push('G<20 (G=' + g255 + ')'); ycrcbPass = false; }
+  if (b255 < 20) { ycrcbReasons.push('B<20 (B=' + b255 + ')'); ycrcbPass = false; }
+  if (r255 < g255) { ycrcbReasons.push('R<G (' + r255 + '<' + g255 + ')'); ycrcbPass = false; }
+  if (cr < 133) { ycrcbReasons.push('Cr<133 (Cr=' + cr + ')'); ycrcbPass = false; }
+  if (cr > 173) { ycrcbReasons.push('Cr>173 (Cr=' + cr + ')'); ycrcbPass = false; }
+  if (cb < 77) { ycrcbReasons.push('Cb<77 (Cb=' + cb + ')'); ycrcbPass = false; }
+  if (cb > 127) { ycrcbReasons.push('Cb>127 (Cb=' + cb + ')'); ycrcbPass = false; }
+  if (y < 30) { ycrcbReasons.push('Y<30 (Y=' + y + ')'); ycrcbPass = false; }
+  const ycrcbIcon = ycrcbPass ? '✅' : '❌';
+  document.getElementById('testYCrCb').innerHTML = ycrcbIcon + ' <b>YCrCb:</b> ' + (ycrcbPass ? 'PASS' : ycrcbReasons.join(', '));
+  
+  // RGB realistic test
+  const rgbReasons = [];
+  let rgbPass = true;
+  if (rN <= 0.35) { rgbReasons.push('R≤0.35 (' + rN.toFixed(3) + ')'); rgbPass = false; }
+  if (rN >= 0.95) { rgbReasons.push('R≥0.95 (' + rN.toFixed(3) + ')'); rgbPass = false; }
+  if (gN <= 0.25) { rgbReasons.push('G≤0.25 (' + gN.toFixed(3) + ')'); rgbPass = false; }
+  if (gN >= 0.85) { rgbReasons.push('G≥0.85 (' + gN.toFixed(3) + ')'); rgbPass = false; }
+  if (bN <= 0.15) { rgbReasons.push('B≤0.15 (' + bN.toFixed(3) + ')'); rgbPass = false; }
+  if (bN >= 0.75) { rgbReasons.push('B≥0.75 (' + bN.toFixed(3) + ')'); rgbPass = false; }
+  if (!(rN > gN)) { rgbReasons.push('R≤G (' + rN.toFixed(3) + '≤' + gN.toFixed(3) + ')'); rgbPass = false; }
+  if (!(gN > bN)) { rgbReasons.push('G≤B (' + gN.toFixed(3) + '≤' + bN.toFixed(3) + ')'); rgbPass = false; }
+  const rbDiff = rN - bN, rgDiff = rN - gN, gbDiff = gN - bN;
+  if (rbDiff < 0.05) { rgbReasons.push('R-B<0.05 (' + rbDiff.toFixed(3) + ')'); rgbPass = false; }
+  if (rbDiff > 0.45) { rgbReasons.push('R-B>0.45 (' + rbDiff.toFixed(3) + ')'); rgbPass = false; }
+  const rgbIcon = rgbPass ? '✅' : '❌';
+  document.getElementById('testRGB').innerHTML = rgbIcon + ' <b>RGB:</b> ' + (rgbPass ? 'PASS' : rgbReasons.join(', '));
+  

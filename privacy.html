@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Privacy Policy — ScrollVeil</title>
+  <meta name="description" content="ScrollVeil privacy policy. ScrollVeil does not collect, store, or transmit any personal data.">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg-deep: #0c0c1a;
+      --text-primary: #e8e8f0;
+      --text-secondary: #9090a8;
+      --text-muted: #5c5c78;
+      --accent: #4CAF50;
+      --accent-soft: #66BB6A;
+      --border: rgba(255,255,255,0.06);
+    }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--bg-deep);
+      color: var(--text-primary);
+      line-height: 1.7;
+      -webkit-font-smoothing: antialiased;
+    }
+    a { color: var(--accent-soft); text-decoration: none; }
+    a:hover { color: #81C784; }
+    .container { max-width: 720px; margin: 0 auto; padding: 0 24px; }
+    nav {
+      padding: 20px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    nav .container { display: flex; align-items: center; justify-content: space-between; }
+    .nav-brand {
+      font-family: 'Playfair Display', serif;
+      font-size: 22px; font-weight: 700; color: var(--text-primary);
+    }
+    .nav-brand span { color: var(--accent); }
+    .content { padding: 60px 0 80px; }
+    .content h1 {
+      font-family: 'Playfair Display', serif;
+      font-size: 36px; font-weight: 700; margin-bottom: 8px; letter-spacing: -0.8px;
+    }
+    .date { font-size: 13px; color: var(--text-muted); margin-bottom: 40px; }
+    .content h2 {
+      font-size: 18px; font-weight: 600; margin-top: 36px; margin-bottom: 12px; color: var(--text-primary);
+    }
+    .content p {
+      font-size: 14px; color: var(--text-secondary); margin-bottom: 14px; line-height: 1.8;
+    }
+    .content ul { list-style: none; padding: 0; margin-bottom: 14px; }
+    .content li {
+      font-size: 14px; color: var(--text-secondary); padding: 4px 0 4px 20px; position: relative; line-height: 1.7;
+    }
+    .content li::before { content: '—'; position: absolute; left: 0; color: var(--text-muted); }
+    footer {
+      padding: 32px 0; border-top: 1px solid var(--border); text-align: center;
+    }
+    footer p { font-size: 13px; color: var(--text-muted); }
+  </style>
+</head>
+<body>
+  <nav>
+    <div class="container">
+      <a href="/" class="nav-brand">🛡️ Scroll<span>Veil</span></a>
+      <a href="/" style="color:var(--text-secondary); font-size:14px;">← Back to home</a>
+    </div>
+  </nav>
+
+  <div class="content">
+    <div class="container">
+      <h1>Privacy Policy</h1>
+      <p class="date">Last updated: March 6, 2026</p>
+
+      <h2>Overview</h2>
+      <p>ScrollVeil is a browser extension that protects users from unwanted visual content. This privacy policy explains how ScrollVeil handles your data. The short version: it doesn't collect any.</p>
+
+      <h2>Data Collection</h2>
+      <p>ScrollVeil does not collect, store, transmit, or share any personal data. Specifically:</p>
+      <ul>
+        <li>No images or videos from your browsing are ever sent to any server</li>
+        <li>No browsing history, URLs, or page content is collected</li>
+        <li>No analytics, telemetry, or usage tracking of any kind</li>
+        <li>No user accounts or registration required</li>
+        <li>No cookies are set by the extension</li>
+        <li>No third-party services receive your data</li>
+      </ul>
+
+      <h2>How Analysis Works</h2>
+      <p>All image and video analysis is performed entirely within your browser using local machine learning models (TensorFlow.js). Images are processed in memory and are never transmitted outside your device. Analysis results (scores and detection metadata) are stored temporarily in browser memory and are cleared when you navigate away or close the tab.</p>
+
+      <h2>Settings Storage</h2>
+      <p>Your preferences (blur strength, auto-unblur threshold, video analysis settings) are stored using Chrome's built-in sync storage API. This data is managed entirely by Chrome and syncs across your devices if you're signed into Chrome. ScrollVeil does not have access to any other Chrome sync data.</p>
+
+      <h2>Bug Reports</h2>
+      <p>If you choose to submit a bug report through the extension, you will be directed to a Google Form. Bug reports are entirely voluntary and may include the page URL and detection details. No data is sent automatically — you review and submit the form yourself.</p>
+
+      <h2>Permissions</h2>
+      <p>ScrollVeil requests the following browser permissions:</p>
+      <ul>
+        <li><strong>activeTab</strong> — to analyze images and videos on the current page</li>
+        <li><strong>storage</strong> — to save your settings preferences</li>
+        <li><strong>offscreen</strong> — to run TensorFlow.js ML models in a sandboxed environment</li>
+        <li><strong>host_permissions (all URLs)</strong> — to provide protection on every website you visit</li>
+      </ul>
+
+      <h2>Third-Party Models</h2>
+      <p>ScrollVeil uses open-source machine learning models (COCO-SSD, BlazeFace, BlazePose, MobileNet) loaded from TensorFlow Hub CDN. The model weights are downloaded once and cached by your browser. No user data is sent to TensorFlow Hub — only the model files are downloaded.</p>
+
+      <h2>Children's Privacy</h2>
+      <p>ScrollVeil is designed to help protect users of all ages from inappropriate content. The extension does not knowingly collect any data from children or any other users.</p>
+
+      <h2>Changes to This Policy</h2>
+      <p>If we update this privacy policy, the changes will be posted on this page with an updated date. Continued use of ScrollVeil after changes constitutes acceptance of the updated policy.</p>
+
+      <h2>Contact</h2>
+      <p>For questions about this privacy policy or ScrollVeil, contact us at <a href="mailto:support@scrollveil.com">support@scrollveil.com</a>.</p>
+
+      <p style="margin-top: 32px; color: var(--text-muted); font-size: 13px;">© 2026 Michael Arold. All rights reserved.</p>
+    </div>
+  </div>
+
+  <footer>
+    <div class="container">
+      <p>© 2026 ScrollVeil by Michael Arold. All rights reserved.</p>
+    </div>
+  </footer>
+</body>
+</html>

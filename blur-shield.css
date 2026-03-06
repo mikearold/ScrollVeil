@@ -1,0 +1,54 @@
+/* ScrollVeil Pre-render Blur Shield
+   Injected by Chrome before any page content renders.
+   Images/videos start blurred, then get unblurred by content.js after analysis.
+   Uses CSS variable --scrollveil-blur set by content.js from user settings. */
+
+:root { --scrollveil-blur: 30px; }
+
+img:not([data-scrollveil-analyzed]):not([data-scrollveil-skip]) {
+  filter: blur(var(--scrollveil-blur)) !important;
+  -webkit-filter: blur(var(--scrollveil-blur)) !important;
+}
+
+video:not([data-scrollveil-analyzed]):not([data-scrollveil-skip]) {
+  filter: blur(var(--scrollveil-blur)) !important;
+  -webkit-filter: blur(var(--scrollveil-blur)) !important;
+  pointer-events: none !important;
+}
+
+/* YouTube: container handles blur — don't individually blur children */
+yt-thumbnail-view-model img,
+yt-thumbnail-view-model img:not([data-scrollveil-analyzed]):not([data-scrollveil-skip]),
+yt-thumbnail-view-model video,
+yt-thumbnail-view-model video:not([data-scrollveil-analyzed]):not([data-scrollveil-skip]) {
+  filter: none !important;
+  -webkit-filter: none !important;
+  pointer-events: auto !important;
+}
+
+/* YouTube hover preview — blur by default, exempt when revealed */
+ytd-video-preview:not([data-scrollveil-revealed]) {
+  filter: blur(var(--scrollveil-blur)) !important;
+  -webkit-filter: blur(var(--scrollveil-blur)) !important;
+}
+
+/* YouTube watch page — main player unblurred by default (user chose to watch) */
+#movie_player video,
+ytd-player video {
+  filter: none !important;
+  -webkit-filter: none !important;
+  pointer-events: auto !important;
+}
+
+/* YouTube watch page — blurred state toggled by badge */
+#movie_player.scrollveil-watch-blurred video {
+  filter: blur(var(--scrollveil-blur)) !important;
+  -webkit-filter: blur(var(--scrollveil-blur)) !important;
+}
+
+/* YouTube: main content area must paint above hover preview (z-index:1)
+   so our badges remain visible and clickable during hover */
+ytd-app > #content {
+  position: relative !important;
+  z-index: 2 !important;
+}

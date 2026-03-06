@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:unpkg.com)",
+      "WebFetch(domain:github.com)",
+      "Bash(curl:*)",
+      "Bash(node -e:*)",
+      "Bash(find:*)",
+      "Bash(node --check:*)"
+    ]
+  }
+}

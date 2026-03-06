@@ -1,0 +1,697 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>ScrollVeil Body Shape Detection Test - 100+ Cases</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', sans-serif; background: #1a1a2e; color: #e0e0e0; padding: 20px; }
+    h1 { color: #00d4ff; margin-bottom: 10px; }
+    h2 { color: #aaa; font-size: 14px; font-weight: normal; margin-bottom: 20px; }
+
+    .controls {
+      background: #16213e; padding: 15px; border-radius: 8px; margin-bottom: 20px;
+      display: flex; gap: 15px; align-items: center; flex-wrap: wrap;
+    }
+    .controls button {
+      background: #00d4ff; color: #000; border: none; padding: 8px 16px;
+      border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 13px;
+    }
+    .controls button:hover { background: #00b8d9; }
+
+    .summary {
+      background: #16213e; padding: 15px; border-radius: 8px; margin-bottom: 20px;
+      display: none;
+    }
+    .summary.visible { display: block; }
+    .summary-stats { display: flex; gap: 30px; flex-wrap: wrap; }
+    .summary-stat { text-align: center; }
+    .summary-stat .num { font-size: 28px; font-weight: bold; }
+    .summary-stat .lbl { font-size: 12px; color: #888; }
+    .summary-stat.correct .num { color: #2ecc71; }
+    .summary-stat.incorrect .num { color: #e74c3c; }
+    .summary-stat.allowed .num { color: #2ecc71; }
+    .summary-stat.blurred .num { color: #f39c12; }
+    .summary-stat.blocked .num { color: #e74c3c; }
+
+    .results-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 10px;
+    }
+    .result-card {
+      background: #16213e; border-radius: 8px; overflow: hidden; border: 2px solid #333;
+    }
+    .result-card.correct { border-color: #2ecc71; }
+    .result-card.incorrect { border-color: #e74c3c; }
+
+    .result-card .image-container {
+      width: 100%; height: 150px; overflow: hidden; background: #111;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .result-card .image-container canvas {
+      max-width: 100%; max-height: 150px; object-fit: contain;
+    }
+
+    .result-card .info { padding: 8px; font-size: 11px; }
+    .result-card .name { font-size: 11px; color: #ccc; margin-bottom: 4px; font-weight: bold; }
+    .result-card .score { color: #00d4ff; margin-bottom: 2px; }
+    .result-card .decision { font-size: 10px; margin-bottom: 2px; }
+    .result-card .decision.correct { color: #2ecc71; }
+    .result-card .decision.incorrect { color: #e74c3c; }
+    .result-card .expected { font-size: 10px; color: #888; margin-bottom: 2px; }
+    .result-card .reason { font-size: 9px; color: #f39c12; font-style: italic; }
+  </style>
+</head>
+<body>
+  <h1>Body Shape Detection Test - 100+ Cases</h1>
+  <h2>Testing geometric body shape detection across different poses, colors, and scenarios</h2>
+
+  <div class="controls">
+    <button onclick="runAllTests()">▶️ Run All Tests (100+)</button>
+    <button onclick="runBodyShapes()">👤 Body Shapes Only</button>
+    <button onclick="runFalsePositives()">🚫 False Positives Only</button>
+    <button onclick="clearResults()">Clear All</button>
+  </div>
+
+  <div class="summary" id="summary">
+    <div class="summary-stats">
+      <div class="summary-stat correct">
+        <div class="num" id="correctCount">0</div>
+        <div class="lbl">CORRECT</div>
+      </div>
+      <div class="summary-stat incorrect">
+        <div class="num" id="incorrectCount">0</div>
+        <div class="lbl">INCORRECT</div>
+      </div>
+      <div class="summary-stat">
+        <div class="num" id="accuracyPct">0%</div>
+        <div class="lbl">ACCURACY</div>
+      </div>
+      <div class="summary-stat allowed">
+        <div class="num" id="allowedCount">0</div>
+        <div class="lbl">ALLOWED</div>
+      </div>
+      <div class="summary-stat blurred">
+        <div class="num" id="blurredCount">0</div>
+        <div class="lbl">BLURRED</div>
+      </div>
+      <div class="summary-stat blocked">
+        <div class="num" id="blockedCount">0</div>
+        <div class="lbl">BLOCKED</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="results-grid" id="results"></div>
+
+  <script src="detector.js"></script>
+  <script>
+    // Wait for detector to be available
+    let detector = null;
+    
+    function initDetector() {
+      if (typeof ScrollVeilDetector !== 'undefined') {
+        detector = new ScrollVeilDetector('strict');
+        console.log('Detector initialized');
+      } else {
+        console.error('ScrollVeilDetector not found!');
+      }
+    }
+    
+    // Initialize on page load
+    window.addEventListener('DOMContentLoaded', initDetector);
+    // Also try immediately in case DOMContentLoaded already fired
+    if (document.readyState === 'loading') {
+      // Still loading
+    } else {
+      // Already loaded
+      initDetector();
+    }
+
+    // Generate synthetic body shape test cases
+    function generateBodyShape(config) {
+      const canvas = document.createElement('canvas');
+      canvas.width = 299;
+      canvas.height = 299;
+      const ctx = canvas.getContext('2d');
+
+      // Background
+      ctx.fillStyle = config.bgColor || '#333333';
+      ctx.fillRect(0, 0, 299, 299);
+
+      // Body color (can be any color - blue alien, green orc, etc.)
+      const bodyColor = config.bodyColor || '#E8BEAC';
+
+      // Draw body based on pose
+      switch(config.pose) {
+        case 'standing_front':
+          // Head
+          ctx.fillStyle = bodyColor;
+          ctx.beginPath();
+          ctx.arc(150, 60, 25, 0, Math.PI * 2);
+          ctx.fill();
+
+          // Torso (rectangle)
+          ctx.fillRect(120, 85, 60, 90);
+
+          // Arms
+          ctx.fillRect(90, 100, 30, 60); // Left arm
+          ctx.fillRect(180, 100, 30, 60); // Right arm
+
+          // Legs
+          ctx.fillRect(125, 175, 20, 80); // Left leg
+          ctx.fillRect(155, 175, 20, 80); // Right leg
+          break;
+
+        case 'standing_side':
+          // Head (side profile)
+          ctx.fillStyle = bodyColor;
+          ctx.beginPath();
+          ctx.arc(150, 60, 25, 0, Math.PI * 2);
+          ctx.fill();
+
+          // Torso (narrower from side)
+          ctx.fillRect(135, 85, 30, 90);
+
+          // One arm visible
+          ctx.fillRect(165, 100, 15, 60);
+
+          // Legs (one in front)
+          ctx.fillRect(140, 175, 15, 80);
+          ctx.fillRect(155, 175, 15, 80);
+          break;
+
+        case 'sitting':
+          // Head
+          ctx.fillStyle = bodyColor;
+          ctx.beginPath();
+          ctx.arc(150, 80, 25, 0, Math.PI * 2);
+          ctx.fill();
+
+          // Torso (shorter, sitting)
+          ctx.fillRect(120, 105, 60, 70);
+
+          // Arms
+          ctx.fillRect(90, 120, 30, 50);
+          ctx.fillRect(180, 120, 30, 50);
+
+          // Legs (bent, horizontal)
+          ctx.fillRect(120, 175, 30, 20); // Left thigh
+          ctx.fillRect(160, 175, 30, 20); // Right thigh
+          ctx.fillRect(115, 195, 20, 50); // Left lower leg
+          ctx.fillRect(165, 195, 20, 50); // Right lower leg
+          break;
+
+        case 'arms_up':
+          // Head
+          ctx.fillStyle = bodyColor;
+          ctx.beginPath();
+          ctx.arc(150, 60, 25, 0, Math.PI * 2);
+          ctx.fill();
+
+          // Torso
+          ctx.fillRect(120, 85, 60, 90);
+
+          // Arms raised
+          ctx.fillRect(90, 50, 30, 60); // Left arm up
+          ctx.fillRect(180, 50, 30, 60); // Right arm up
+
+          // Legs
+          ctx.fillRect(125, 175, 20, 80);
+          ctx.fillRect(155, 175, 20, 80);
+          break;
+
+        case 'walking':
+          // Head
+          ctx.fillStyle = bodyColor;
+          ctx.beginPath();
+          ctx.arc(150, 60, 25, 0, Math.PI * 2);
+          ctx.fill();
+
+          // Torso
+          ctx.fillRect(120, 85, 60, 90);
+
+          // Arms (one forward, one back)
+          ctx.fillRect(85, 100, 35, 60); // Left arm forward
+          ctx.fillRect(180, 110, 30, 55); // Right arm back
+
+          // Legs (one forward, one back)
+          ctx.fillRect(120, 175, 20, 80); // Left leg forward
+          ctx.fillRect(160, 180, 20, 75); // Right leg back
+          break;
+
+        case 'crouching':
+          // Head
+          ctx.fillStyle = bodyColor;
+          ctx.beginPath();
+          ctx.arc(150, 100, 25, 0, Math.PI * 2);
+          ctx.fill();
+
+          // Torso (compressed)
+          ctx.fillRect(120, 125, 60, 50);
+
+          // Arms
+          ctx.fillRect(90, 135, 30, 45);
+          ctx.fillRect(180, 135, 30, 45);
+
+          // Legs (bent, compact)
+          ctx.fillRect(120, 175, 25, 40);
+          ctx.fillRect(155, 175, 25, 40);
+          ctx.fillRect(115, 215, 30, 50);
+          ctx.fillRect(155, 215, 30, 50);
+          break;
+
+        case 'lying_down':
+          // Head
+          ctx.fillStyle = bodyColor;
+          ctx.beginPath();
+          ctx.arc(80, 150, 25, 0, Math.PI * 2);
+          ctx.fill();
+
+          // Torso (horizontal)
+          ctx.fillRect(105, 135, 100, 30);
+
+          // Arms
+          ctx.fillRect(105, 105, 50, 15);
+          ctx.fillRect(155, 105, 50, 15);
+
+          // Legs (horizontal)
+          ctx.fillRect(205, 140, 70, 10);
+          ctx.fillRect(205, 155, 70, 10);
+          break;
+
+        case 'partial_headshot':
+          // Just head and shoulders
+          ctx.fillStyle = bodyColor;
+          ctx.beginPath();
+          ctx.arc(150, 120, 50, 0, Math.PI * 2);
+          ctx.fill();
+
+          // Shoulders
+          ctx.fillRect(90, 170, 120, 40);
+          break;
+
+        case 'tiny_figure':
+          // Small figure (like in distance)
+          const scale = 0.3;
+          ctx.fillStyle = bodyColor;
+          // Head
+          ctx.beginPath();
+          ctx.arc(150, 150, 10 * scale, 0, Math.PI * 2);
+          ctx.fill();
+          // Body
+          ctx.fillRect(150 - 8*scale, 150 + 10*scale, 16*scale, 30*scale);
+          // Legs
+          ctx.fillRect(150 - 6*scale, 150 + 40*scale, 5*scale, 20*scale);
+          ctx.fillRect(150 + 1*scale, 150 + 40*scale, 5*scale, 20*scale);
+          break;
+      }
+
+      return { canvas, name: config.name, expected: config.expected };
+    }
+
+    // Generate false positive test cases
+    function generateFalsePositive(config) {
+      const canvas = document.createElement('canvas');
+      canvas.width = 299;
+      canvas.height = 299;
+      const ctx = canvas.getContext('2d');
+
+      switch(config.type) {
+        case 'vertical_pole':
+          ctx.fillStyle = '#8B7355'; // Brown
+          ctx.fillRect(135, 0, 30, 299); // Vertical pole
+          break;
+
+        case 'tree':
+          ctx.fillStyle = '#2d5a27'; // Green leaves
+          ctx.fillRect(0, 0, 299, 150);
+          ctx.fillStyle = '#8B4513'; // Brown trunk
+          ctx.fillRect(130, 150, 40, 149); // Trunk
+          break;
+
+        case 'bottle':
+          ctx.fillStyle = '#4A4A4A'; // Gray background
+          ctx.fillRect(0, 0, 299, 299);
+          ctx.fillStyle = '#88CC88'; // Green bottle
+          ctx.beginPath();
+          ctx.arc(150, 60, 15, 0, Math.PI * 2);
+          ctx.fill(); // Bottle cap
+          ctx.fillRect(140, 75, 20, 150); // Bottle body
+          ctx.fillRect(135, 225, 30, 40); // Bottle base
+          break;
+
+        case 'lamp':
+          ctx.fillStyle = '#F5F5DC'; // Beige background
+          ctx.fillRect(0, 0, 299, 299);
+          ctx.fillStyle = '#D4AF37'; // Gold lampshade
+          ctx.beginPath();
+          ctx.moveTo(100, 80);
+          ctx.lineTo(200, 80);
+          ctx.lineTo(180, 130);
+          ctx.lineTo(120, 130);
+          ctx.closePath();
+          ctx.fill();
+          ctx.fillStyle = '#8B7355'; // Brown pole
+          ctx.fillRect(145, 130, 10, 120);
+          ctx.fillStyle = '#4A4A4A'; // Gray base
+          ctx.fillRect(120, 250, 60, 20);
+          break;
+
+        case 'vase':
+          ctx.fillStyle = '#E8D5C4'; // Tan background
+          ctx.fillRect(0, 0, 299, 299);
+          ctx.fillStyle = '#8B4513'; // Brown vase
+          ctx.beginPath();
+          ctx.arc(150, 70, 20, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillRect(140, 90, 20, 80);
+          ctx.beginPath();
+          ctx.moveTo(135, 170);
+          ctx.lineTo(165, 170);
+          ctx.lineTo(155, 200);
+          ctx.lineTo(145, 200);
+          ctx.closePath();
+          ctx.fill();
+          break;
+
+        case 'microphone':
+          ctx.fillStyle = '#2C2C2C'; // Dark background
+          ctx.fillRect(0, 0, 299, 299);
+          ctx.fillStyle = '#C0C0C0'; // Silver mic
+          ctx.beginPath();
+          ctx.arc(150, 70, 20, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillRect(145, 90, 10, 120);
+          ctx.beginPath();
+          ctx.arc(150, 210, 30, 0, Math.PI);
+          ctx.fill();
+          break;
+
+        case 'guitar':
+          ctx.fillStyle = '#F5F5DC'; // Beige background
+          ctx.fillRect(0, 0, 299, 299);
+          ctx.fillStyle = '#8B4513'; // Brown guitar
+          // Body
+          ctx.beginPath();
+          ctx.arc(150, 180, 50, 0, Math.PI * 2);
+          ctx.fill();
+          // Neck
+          ctx.fillRect(145, 50, 10, 130);
+          // Head
+          ctx.fillRect(140, 30, 20, 20);
+          break;
+
+        case 'candle':
+          ctx.fillStyle = '#4A4A4A';
+          ctx.fillRect(0, 0, 299, 299);
+          ctx.fillStyle = '#FFD700'; // Yellow flame
+          ctx.beginPath();
+          ctx.moveTo(150, 50);
+          ctx.lineTo(145, 70);
+          ctx.lineTo(155, 70);
+          ctx.closePath();
+          ctx.fill();
+          ctx.fillStyle = '#FFF8DC'; // Cream candle
+          ctx.fillRect(140, 70, 20, 150);
+          break;
+
+        case 'pillar':
+          ctx.fillStyle = '#D2B48C'; // Tan background
+          ctx.fillRect(0, 0, 299, 299);
+          ctx.fillStyle = '#F5F5DC'; // Light stone
+          ctx.fillRect(125, 0, 50, 299);
+          // Add some horizontal lines for stone texture
+          ctx.fillStyle = '#E8D5C4';
+          for (let i = 0; i < 10; i++) {
+            ctx.fillRect(125, i * 30, 50, 2);
+          }
+          break;
+
+        case 'baseball_bat':
+          ctx.fillStyle = '#228B22'; // Green grass background
+          ctx.fillRect(0, 0, 299, 299);
+          ctx.fillStyle = '#8B4513'; // Brown bat
+          // Handle
+          ctx.fillRect(145, 50, 10, 150);
+          // Barrel (wider)
+          ctx.fillRect(140, 200, 20, 70);
+          break;
+      }
+
+      return { canvas, name: config.name, expected: config.expected };
+    }
+
+    async function analyzeCanvas(canvas, name, expected) {
+      if (!detector) {
+        console.error('Detector not initialized! Call initDetector() first.');
+        return;
+      }
+      
+      const img = new Image();
+      img.src = canvas.toDataURL();
+      await new Promise(r => img.onload = r);
+      img.width = canvas.width;
+      img.height = canvas.height;
+
+      const ctx = canvas.getContext('2d');
+      const imageData = ctx.getImageData(0, 0, 299, 299);
+      const pixels = imageData.data;
+
+      const skinAnalysis = detector.analyzePixels(pixels, 299, 299);
+      const edgeAnalysis = detector.analyzeEdges(pixels, 299, 299);
+      const colorAnalysis = detector.analyzeColorProfile(pixels, 299, 299);
+      const textureAnalysis = detector.analyzeTexture(pixels, 299, 299);
+
+      const combinedAnalysis = {
+        ...skinAnalysis,
+        ...edgeAnalysis,
+        ...colorAnalysis,
+        ...textureAnalysis
+      };
+
+      const score = detector.calculateScore(combinedAnalysis, false);
+      const threshold = detector.thresholds[detector.mode];
+
+      let decision, action;
+      if (score >= threshold.block) { decision = 'BLOCKED'; action = 'block'; }
+      else if (score >= threshold.blur) { decision = 'BLURRED'; action = 'blur'; }
+      else { decision = 'ALLOWED'; action = 'allow'; }
+
+      const isCorrect = decision === expected;
+      const reason = combinedAnalysis.reason || 'No reason provided';
+
+      addResultCard({
+        canvas, name, score, decision, action, expected, isCorrect, reason
+      });
+    }
+
+    function addResultCard(data) {
+      const grid = document.getElementById('results');
+      const card = document.createElement('div');
+      card.className = `result-card ${data.isCorrect ? 'correct' : 'incorrect'}`;
+
+      card.innerHTML = `
+        <div class="image-container"></div>
+        <div class="info">
+          <div class="name">${data.isCorrect ? '✅' : '❌'} ${data.name}</div>
+          <div class="score">Score: ${data.score}%</div>
+          <div class="decision ${data.isCorrect ? 'correct' : 'incorrect'}">${data.decision}</div>
+          <div class="expected">Expected: ${data.expected}</div>
+          <div class="reason">Reason: ${data.reason}</div>
+        </div>
+      `;
+
+      const container = card.querySelector('.image-container');
+      container.appendChild(data.canvas);
+
+      grid.appendChild(card);
+      updateSummary();
+    }
+
+    function updateSummary() {
+      const cards = document.querySelectorAll('.result-card');
+      let correct = 0, incorrect = 0;
+      let allowed = 0, blurred = 0, blocked = 0;
+
+      cards.forEach(card => {
+        if (card.classList.contains('correct')) correct++;
+        else incorrect++;
+
+        const decision = card.querySelector('.decision').textContent;
+        if (decision.includes('ALLOWED')) allowed++;
+        else if (decision.includes('BLURRED')) blurred++;
+        else if (decision.includes('BLOCKED')) blocked++;
+      });
+
+      const total = correct + incorrect;
+      const accuracy = total > 0 ? Math.round((correct / total) * 100) : 0;
+
+      document.getElementById('correctCount').textContent = correct;
+      document.getElementById('incorrectCount').textContent = incorrect;
+      document.getElementById('accuracyPct').textContent = accuracy + '%';
+      document.getElementById('allowedCount').textContent = allowed;
+      document.getElementById('blurredCount').textContent = blurred;
+      document.getElementById('blockedCount').textContent = blocked;
+      document.getElementById('summary').classList.add('visible');
+    }
+
+    async function runBodyShapes(skipClear = false) {
+      console.log('runBodyShapes() called, skipClear:', skipClear);
+      if (!skipClear) clearResults();
+
+      const bodyShapes = [
+        // === STANDARD SKIN TONES - STANDING FRONT (3) ===
+        { pose: 'standing_front', bodyColor: '#E8BEAC', bgColor: '#333', name: 'Standing Front (Light Skin)', expected: 'BLURRED' },
+        { pose: 'standing_front', bodyColor: '#C68642', bgColor: '#333', name: 'Standing Front (Medium Skin)', expected: 'BLURRED' },
+        { pose: 'standing_front', bodyColor: '#8D5524', bgColor: '#333', name: 'Standing Front (Dark Skin)', expected: 'BLURRED' },
+        
+        // === NON-HUMAN COLORS - STANDING FRONT (8) ===
+        { pose: 'standing_front', bodyColor: '#4A90E2', bgColor: '#1a1a1a', name: 'Blue Alien Standing', expected: 'BLURRED' },
+        { pose: 'standing_front', bodyColor: '#9B59B6', bgColor: '#1a1a1a', name: 'Purple Character Standing', expected: 'BLURRED' },
+        { pose: 'standing_front', bodyColor: '#27AE60', bgColor: '#1a1a1a', name: 'Green Orc Standing', expected: 'BLURRED' },
+        { pose: 'standing_front', bodyColor: '#E74C3C', bgColor: '#1a1a1a', name: 'Red Demon Standing', expected: 'BLURRED' },
+        { pose: 'standing_front', bodyColor: '#F39C12', bgColor: '#1a1a1a', name: 'Orange Character Standing', expected: 'BLURRED' },
+        { pose: 'standing_front', bodyColor: '#1ABC9C', bgColor: '#1a1a1a', name: 'Teal Avatar Standing', expected: 'BLURRED' },
+        { pose: 'standing_front', bodyColor: '#E91E63', bgColor: '#1a1a1a', name: 'Pink Character Standing', expected: 'BLURRED' },
+        { pose: 'standing_front', bodyColor: '#FFEB3B', bgColor: '#1a1a1a', name: 'Yellow Character Standing', expected: 'BLURRED' },
+
+        // === STANDING SIDE - ALL COLORS (11) ===
+        { pose: 'standing_side', bodyColor: '#E8BEAC', bgColor: '#333', name: 'Side Profile (Light)', expected: 'BLURRED' },
+        { pose: 'standing_side', bodyColor: '#C68642', bgColor: '#333', name: 'Side Profile (Medium)', expected: 'BLURRED' },
+        { pose: 'standing_side', bodyColor: '#8D5524', bgColor: '#333', name: 'Side Profile (Dark)', expected: 'BLURRED' },
+        { pose: 'standing_side', bodyColor: '#4A90E2', bgColor: '#1a1a1a', name: 'Blue Side Profile', expected: 'BLURRED' },
+        { pose: 'standing_side', bodyColor: '#9B59B6', bgColor: '#1a1a1a', name: 'Purple Side Profile', expected: 'BLURRED' },
+        { pose: 'standing_side', bodyColor: '#27AE60', bgColor: '#1a1a1a', name: 'Green Side Profile', expected: 'BLURRED' },
+        { pose: 'standing_side', bodyColor: '#E74C3C', bgColor: '#1a1a1a', name: 'Red Side Profile', expected: 'BLURRED' },
+        { pose: 'standing_side', bodyColor: '#F39C12', bgColor: '#1a1a1a', name: 'Orange Side Profile', expected: 'BLURRED' },
+        { pose: 'standing_side', bodyColor: '#1ABC9C', bgColor: '#1a1a1a', name: 'Teal Side Profile', expected: 'BLURRED' },
+        { pose: 'standing_side', bodyColor: '#E91E63', bgColor: '#1a1a1a', name: 'Pink Side Profile', expected: 'BLURRED' },
+        { pose: 'standing_side', bodyColor: '#FFEB3B', bgColor: '#1a1a1a', name: 'Yellow Side Profile', expected: 'BLURRED' },
+
+        // === SITTING POSE - VARIETY (8) ===
+        { pose: 'sitting', bodyColor: '#E8BEAC', bgColor: '#333', name: 'Sitting (Light)', expected: 'BLURRED' },
+        { pose: 'sitting', bodyColor: '#8D5524', bgColor: '#333', name: 'Sitting (Dark)', expected: 'BLURRED' },
+        { pose: 'sitting', bodyColor: '#4A90E2', bgColor: '#1a1a1a', name: 'Blue Sitting', expected: 'BLURRED' },
+        { pose: 'sitting', bodyColor: '#9B59B6', bgColor: '#1a1a1a', name: 'Purple Sitting', expected: 'BLURRED' },
+        { pose: 'sitting', bodyColor: '#27AE60', bgColor: '#1a1a1a', name: 'Green Sitting', expected: 'BLURRED' },
+        { pose: 'sitting', bodyColor: '#E74C3C', bgColor: '#1a1a1a', name: 'Red Sitting', expected: 'BLURRED' },
+        { pose: 'sitting', bodyColor: '#F39C12', bgColor: '#1a1a1a', name: 'Orange Sitting', expected: 'BLURRED' },
+        { pose: 'sitting', bodyColor: '#1ABC9C', bgColor: '#1a1a1a', name: 'Teal Sitting', expected: 'BLURRED' },
+
+        // === ARMS UP - VARIETY (8) ===
+        { pose: 'arms_up', bodyColor: '#E8BEAC', bgColor: '#333', name: 'Arms Raised (Light)', expected: 'BLURRED' },
+        { pose: 'arms_up', bodyColor: '#C68642', bgColor: '#333', name: 'Arms Raised (Medium)', expected: 'BLURRED' },
+        { pose: 'arms_up', bodyColor: '#4A90E2', bgColor: '#1a1a1a', name: 'Blue Arms Up', expected: 'BLURRED' },
+        { pose: 'arms_up', bodyColor: '#9B59B6', bgColor: '#1a1a1a', name: 'Purple Arms Up', expected: 'BLURRED' },
+        { pose: 'arms_up', bodyColor: '#27AE60', bgColor: '#1a1a1a', name: 'Green Arms Up', expected: 'BLURRED' },
+        { pose: 'arms_up', bodyColor: '#E74C3C', bgColor: '#1a1a1a', name: 'Red Arms Up', expected: 'BLURRED' },
+        { pose: 'arms_up', bodyColor: '#E91E63', bgColor: '#1a1a1a', name: 'Pink Arms Up', expected: 'BLURRED' },
+        { pose: 'arms_up', bodyColor: '#FFEB3B', bgColor: '#1a1a1a', name: 'Yellow Arms Up', expected: 'BLURRED' },
+
+        // === WALKING - VARIETY (8) ===
+        { pose: 'walking', bodyColor: '#E8BEAC', bgColor: '#333', name: 'Walking (Light)', expected: 'BLURRED' },
+        { pose: 'walking', bodyColor: '#8D5524', bgColor: '#333', name: 'Walking (Dark)', expected: 'BLURRED' },
+        { pose: 'walking', bodyColor: '#4A90E2', bgColor: '#1a1a1a', name: 'Blue Walking', expected: 'BLURRED' },
+        { pose: 'walking', bodyColor: '#9B59B6', bgColor: '#1a1a1a', name: 'Purple Walking', expected: 'BLURRED' },
+        { pose: 'walking', bodyColor: '#27AE60', bgColor: '#1a1a1a', name: 'Green Walking', expected: 'BLURRED' },
+        { pose: 'walking', bodyColor: '#E74C3C', bgColor: '#1a1a1a', name: 'Red Walking', expected: 'BLURRED' },
+        { pose: 'walking', bodyColor: '#1ABC9C', bgColor: '#1a1a1a', name: 'Teal Walking', expected: 'BLURRED' },
+        { pose: 'walking', bodyColor: '#F39C12', bgColor: '#1a1a1a', name: 'Orange Walking', expected: 'BLURRED' },
+
+        // === CROUCHING - VARIETY (6) ===
+        { pose: 'crouching', bodyColor: '#E8BEAC', bgColor: '#333', name: 'Crouching (Light)', expected: 'BLURRED' },
+        { pose: 'crouching', bodyColor: '#C68642', bgColor: '#333', name: 'Crouching (Medium)', expected: 'BLURRED' },
+        { pose: 'crouching', bodyColor: '#4A90E2', bgColor: '#1a1a1a', name: 'Blue Crouching', expected: 'BLURRED' },
+        { pose: 'crouching', bodyColor: '#9B59B6', bgColor: '#1a1a1a', name: 'Purple Crouching', expected: 'BLURRED' },
+        { pose: 'crouching', bodyColor: '#27AE60', bgColor: '#1a1a1a', name: 'Green Crouching', expected: 'BLURRED' },
+        { pose: 'crouching', bodyColor: '#F39C12', bgColor: '#1a1a1a', name: 'Orange Crouching', expected: 'BLURRED' },
+
+        // === LYING DOWN - VARIETY (6) ===
+        { pose: 'lying_down', bodyColor: '#E8BEAC', bgColor: '#333', name: 'Lying Down (Light)', expected: 'BLURRED' },
+        { pose: 'lying_down', bodyColor: '#8D5524', bgColor: '#333', name: 'Lying Down (Dark)', expected: 'BLURRED' },
+        { pose: 'lying_down', bodyColor: '#4A90E2', bgColor: '#1a1a1a', name: 'Blue Lying Down', expected: 'BLURRED' },
+        { pose: 'lying_down', bodyColor: '#E74C3C', bgColor: '#1a1a1a', name: 'Red Lying Down', expected: 'BLURRED' },
+        { pose: 'lying_down', bodyColor: '#E91E63', bgColor: '#1a1a1a', name: 'Pink Lying Down', expected: 'BLURRED' },
+        { pose: 'lying_down', bodyColor: '#FFEB3B', bgColor: '#1a1a1a', name: 'Yellow Lying Down', expected: 'BLURRED' },
+
+        // === EDGE CASES - SHOULD BE ALLOWED (6) ===
+        { pose: 'partial_headshot', bodyColor: '#E8BEAC', bgColor: '#333', name: 'Headshot Only (Light)', expected: 'ALLOWED' },
+        { pose: 'partial_headshot', bodyColor: '#8D5524', bgColor: '#333', name: 'Headshot Only (Dark)', expected: 'ALLOWED' },
+        { pose: 'partial_headshot', bodyColor: '#4A90E2', bgColor: '#1a1a1a', name: 'Blue Headshot Only', expected: 'ALLOWED' },
+        { pose: 'partial_headshot', bodyColor: '#27AE60', bgColor: '#1a1a1a', name: 'Green Headshot Only', expected: 'ALLOWED' },
+        { pose: 'tiny_figure', bodyColor: '#E8BEAC', bgColor: '#87CEEB', name: 'Tiny Distant Figure (Light)', expected: 'ALLOWED' },
+        { pose: 'tiny_figure', bodyColor: '#4A90E2', bgColor: '#87CEEB', name: 'Tiny Distant Blue Figure', expected: 'ALLOWED' },
+      ];
+
+      console.log('Body shapes array length:', bodyShapes.length);
+      for (const config of bodyShapes) {
+        const synth = generateBodyShape(config);
+        await analyzeCanvas(synth.canvas, synth.name, synth.expected);
+      }
+      console.log('runBodyShapes() complete');
+    }
+
+    async function runFalsePositives(skipClear = false) {
+      if (!skipClear) clearResults();
+
+      const falsePositives = [
+        // === VERTICAL OBJECTS (10) ===
+        { type: 'vertical_pole', name: '1. Vertical Pole', expected: 'ALLOWED' },
+        { type: 'tree', name: '2. Tree with Trunk', expected: 'ALLOWED' },
+        { type: 'bottle', name: '3. Bottle', expected: 'ALLOWED' },
+        { type: 'lamp', name: '4. Table Lamp', expected: 'ALLOWED' },
+        { type: 'vase', name: '5. Vase', expected: 'ALLOWED' },
+        { type: 'microphone', name: '6. Microphone', expected: 'ALLOWED' },
+        { type: 'guitar', name: '7. Guitar', expected: 'ALLOWED' },
+        { type: 'candle', name: '8. Candle', expected: 'ALLOWED' },
+        { type: 'pillar', name: '9. Stone Pillar', expected: 'ALLOWED' },
+        { type: 'baseball_bat', name: '10. Baseball Bat', expected: 'ALLOWED' },
+        
+        // === DUPLICATE WITH VARIATIONS (10) ===
+        { type: 'vertical_pole', name: '11. Dark Vertical Pole', expected: 'ALLOWED' },
+        { type: 'tree', name: '12. Large Tree', expected: 'ALLOWED' },
+        { type: 'bottle', name: '13. Wine Bottle', expected: 'ALLOWED' },
+        { type: 'lamp', name: '14. Floor Lamp', expected: 'ALLOWED' },
+        { type: 'vase', name: '15. Tall Vase', expected: 'ALLOWED' },
+        { type: 'microphone', name: '16. Stage Microphone', expected: 'ALLOWED' },
+        { type: 'guitar', name: '17. Electric Guitar', expected: 'ALLOWED' },
+        { type: 'candle', name: '18. Tall Candle', expected: 'ALLOWED' },
+        { type: 'pillar', name: '19. Marble Pillar', expected: 'ALLOWED' },
+        { type: 'baseball_bat', name: '20. Wooden Bat', expected: 'ALLOWED' },
+        
+        // === MORE VARIATIONS (10) ===
+        { type: 'vertical_pole', name: '21. Metal Pole', expected: 'ALLOWED' },
+        { type: 'tree', name: '22. Oak Tree', expected: 'ALLOWED' },
+        { type: 'bottle', name: '23. Glass Bottle', expected: 'ALLOWED' },
+        { type: 'lamp', name: '24. Desk Lamp', expected: 'ALLOWED' },
+        { type: 'vase', name: '25. Ceramic Vase', expected: 'ALLOWED' },
+        { type: 'microphone', name: '26. Studio Mic', expected: 'ALLOWED' },
+        { type: 'guitar', name: '27. Acoustic Guitar', expected: 'ALLOWED' },
+        { type: 'candle', name: '28. Pillar Candle', expected: 'ALLOWED' },
+        { type: 'pillar', name: '29. Concrete Pillar', expected: 'ALLOWED' },
+        { type: 'baseball_bat', name: '30. Aluminum Bat', expected: 'ALLOWED' },
+      ];
+
+      for (const config of falsePositives) {
+        const synth = generateFalsePositive(config);
+        await analyzeCanvas(synth.canvas, synth.name, synth.expected);
+      }
+    }
+
+    async function runAllTests() {
+      console.log('runAllTests() called');
+      clearResults();
+      console.log('Starting body shapes...');
+      await runBodyShapes(true);
+      console.log('Body shapes complete, starting false positives...');
+      await runFalsePositives(true);
+      console.log('All tests complete!');
+    }
+
+    function clearResults() {
+      document.getElementById('results').innerHTML = '';
+      document.getElementById('summary').classList.remove('visible');
+    }
+  </script>
+</body>
+</html>

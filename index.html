@@ -1,0 +1,749 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ScrollVeil — Browse Without Fear</title>
+  <meta name="description" content="ScrollVeil is a browser extension that detects and blurs inappropriate images before you see them. Privacy-first, AI-powered content protection.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg-deep: #0c0c1a;
+      --bg-card: #141428;
+      --bg-card-hover: #1a1a35;
+      --text-primary: #e8e8f0;
+      --text-secondary: #9090a8;
+      --text-muted: #5c5c78;
+      --accent: #4CAF50;
+      --accent-glow: rgba(76, 175, 80, 0.15);
+      --accent-soft: #66BB6A;
+      --border: rgba(255, 255, 255, 0.06);
+      --radius: 16px;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--bg-deep);
+      color: var(--text-primary);
+      line-height: 1.7;
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      top: -30%;
+      left: -10%;
+      width: 60%;
+      height: 60%;
+      background: radial-gradient(ellipse, rgba(76, 175, 80, 0.04) 0%, transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+    body::after {
+      content: '';
+      position: fixed;
+      bottom: -20%;
+      right: -15%;
+      width: 50%;
+      height: 50%;
+      background: radial-gradient(ellipse, rgba(60, 60, 180, 0.03) 0%, transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    a { color: var(--accent-soft); text-decoration: none; transition: color 0.2s; }
+    a:hover { color: #81C784; }
+
+    .container {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 0 24px;
+      position: relative;
+      z-index: 1;
+    }
+
+    nav {
+      padding: 20px 0;
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      background: rgba(12, 12, 26, 0.85);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      z-index: 100;
+    }
+    nav .container {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .nav-brand {
+      font-family: 'Playfair Display', serif;
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--text-primary);
+      letter-spacing: -0.5px;
+    }
+    .nav-brand span { color: var(--accent); }
+    .nav-links { display: flex; gap: 28px; align-items: center; }
+    .nav-links a {
+      color: var(--text-secondary);
+      font-size: 14px;
+      font-weight: 500;
+      letter-spacing: 0.3px;
+      transition: color 0.2s;
+    }
+    .nav-links a:hover { color: var(--text-primary); }
+
+    .hero {
+      padding: 100px 0 80px;
+      text-align: center;
+    }
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 16px;
+      background: var(--accent-glow);
+      border: 1px solid rgba(76, 175, 80, 0.2);
+      border-radius: 100px;
+      font-size: 13px;
+      color: var(--accent-soft);
+      font-weight: 500;
+      margin-bottom: 32px;
+    }
+    .hero-badge::before {
+      content: '';
+      width: 8px;
+      height: 8px;
+      background: var(--accent);
+      border-radius: 50%;
+      animation: pulse-dot 2s ease-in-out infinite;
+    }
+    @keyframes pulse-dot {
+      0%, 100% { opacity: 0.5; }
+      50% { opacity: 1; }
+    }
+    .hero h1 {
+      font-family: 'Playfair Display', serif;
+      font-size: clamp(40px, 6vw, 64px);
+      font-weight: 700;
+      line-height: 1.1;
+      margin-bottom: 24px;
+      letter-spacing: -1.5px;
+    }
+    .hero h1 em {
+      font-style: italic;
+      color: var(--accent-soft);
+    }
+    .hero p {
+      font-size: 18px;
+      color: var(--text-secondary);
+      max-width: 540px;
+      margin: 0 auto 40px;
+      line-height: 1.8;
+    }
+    .cta-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 14px 32px;
+      background: var(--accent);
+      color: #fff;
+      border-radius: 12px;
+      font-size: 16px;
+      font-weight: 600;
+      font-family: inherit;
+      border: none;
+      cursor: pointer;
+      transition: all 0.25s;
+      box-shadow: 0 4px 24px rgba(76, 175, 80, 0.25);
+    }
+    .cta-btn:hover {
+      background: var(--accent-soft);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 32px rgba(76, 175, 80, 0.35);
+      color: #fff;
+    }
+    .cta-btn svg { width: 18px; height: 18px; }
+
+    .features { padding: 60px 0 80px; }
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+    }
+    .feature-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 32px 28px;
+      transition: all 0.3s;
+    }
+    .feature-card:hover {
+      background: var(--bg-card-hover);
+      border-color: rgba(76, 175, 80, 0.12);
+      transform: translateY(-4px);
+    }
+    .feature-icon {
+      width: 44px;
+      height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--accent-glow);
+      border-radius: 12px;
+      margin-bottom: 18px;
+      font-size: 22px;
+    }
+    .feature-card h3 {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 10px;
+      color: var(--text-primary);
+    }
+    .feature-card p {
+      font-size: 14px;
+      color: var(--text-secondary);
+      line-height: 1.7;
+    }
+
+    .how-it-works {
+      padding: 80px 0;
+      border-top: 1px solid var(--border);
+    }
+    .section-label {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: var(--accent);
+      font-weight: 600;
+      margin-bottom: 12px;
+    }
+    .section-title {
+      font-family: 'Playfair Display', serif;
+      font-size: clamp(28px, 4vw, 38px);
+      font-weight: 700;
+      margin-bottom: 48px;
+      letter-spacing: -0.8px;
+    }
+    .steps {
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+    .step {
+      display: flex;
+      gap: 24px;
+      align-items: flex-start;
+      padding: 28px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+    }
+    .step-number {
+      min-width: 44px;
+      height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--accent-glow);
+      border: 1px solid rgba(76, 175, 80, 0.2);
+      border-radius: 12px;
+      font-weight: 700;
+      font-size: 16px;
+      color: var(--accent);
+    }
+    .step h3 {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+    .step p {
+      font-size: 14px;
+      color: var(--text-secondary);
+    }
+
+    .principles {
+      padding: 80px 0;
+      border-top: 1px solid var(--border);
+    }
+    .principles-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 20px;
+    }
+    .principle {
+      padding: 28px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+    }
+    .principle h3 {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .principle p {
+      font-size: 14px;
+      color: var(--text-secondary);
+      line-height: 1.7;
+    }
+
+    /* ═══ Screenshots Gallery ═══ */
+    .screenshots {
+      padding: 80px 0;
+      border-top: 1px solid var(--border);
+    }
+    .screenshots-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 24px;
+    }
+    .screenshot-item {
+      border-radius: var(--radius);
+      overflow: hidden;
+      border: 1px solid var(--border);
+      background: var(--bg-card);
+      transition: all 0.3s;
+    }
+    .screenshot-item:hover {
+      border-color: rgba(76, 175, 80, 0.2);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    }
+    .screenshot-item img {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+    .screenshot-caption {
+      padding: 14px 20px;
+      font-size: 13px;
+      color: var(--text-secondary);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .screenshot-caption .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .badge-google { background: rgba(66, 133, 244, 0.15); color: #8ab4f8; }
+    .badge-twitter { background: rgba(29, 155, 240, 0.15); color: #1d9bf0; }
+    .badge-instagram { background: rgba(225, 48, 108, 0.15); color: #e1306c; }
+
+    /* ═══ Lightbox ═══ */
+    .lightbox {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.92);
+      z-index: 1000;
+      justify-content: center;
+      align-items: center;
+      cursor: zoom-out;
+    }
+    .lightbox.active { display: flex; }
+    .lightbox img {
+      max-width: 95%;
+      max-height: 95%;
+      border-radius: 8px;
+      box-shadow: 0 0 60px rgba(0, 0, 0, 0.5);
+    }
+
+    .cta-section {
+      padding: 80px 0;
+      text-align: center;
+      border-top: 1px solid var(--border);
+    }
+    .cta-section h2 {
+      font-family: 'Playfair Display', serif;
+      font-size: clamp(28px, 4vw, 38px);
+      font-weight: 700;
+      margin-bottom: 16px;
+      letter-spacing: -0.8px;
+    }
+    .cta-section p {
+      color: var(--text-secondary);
+      margin-bottom: 32px;
+      font-size: 16px;
+    }
+
+    .privacy {
+      padding: 80px 0;
+      border-top: 1px solid var(--border);
+    }
+    .privacy-content { max-width: 720px; }
+    .privacy-content h3 {
+      font-size: 18px;
+      font-weight: 600;
+      margin-top: 36px;
+      margin-bottom: 12px;
+      color: var(--text-primary);
+    }
+    .privacy-content p {
+      font-size: 14px;
+      color: var(--text-secondary);
+      margin-bottom: 14px;
+      line-height: 1.8;
+    }
+    .privacy-content ul {
+      list-style: none;
+      padding: 0;
+      margin-bottom: 14px;
+    }
+    .privacy-content li {
+      font-size: 14px;
+      color: var(--text-secondary);
+      padding: 4px 0 4px 20px;
+      position: relative;
+      line-height: 1.7;
+    }
+    .privacy-content li::before {
+      content: '—';
+      position: absolute;
+      left: 0;
+      color: var(--text-muted);
+    }
+    .privacy-date {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-bottom: 24px;
+    }
+
+    footer {
+      padding: 32px 0;
+      border-top: 1px solid var(--border);
+      text-align: center;
+    }
+    footer p {
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+
+    @media (max-width: 768px) {
+      .features-grid { grid-template-columns: 1fr; }
+      .principles-grid { grid-template-columns: 1fr; }
+      .nav-links { gap: 16px; }
+      .hero { padding: 60px 0 50px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Navigation -->
+  <nav>
+    <div class="container">
+      <div class="nav-brand">🛡️ Scroll<span>Veil</span></div>
+      <div class="nav-links">
+        <a href="#features">Features</a>
+        <a href="#how-it-works">How It Works</a>
+        <a href="#screenshots">Screenshots</a>
+        <a href="#privacy">Privacy</a>
+        <a href="#install" class="cta-btn" style="padding:8px 20px; font-size:13px; box-shadow:none;">Add to Chrome</a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Hero -->
+  <section class="hero">
+    <div class="container">
+      <div class="hero-badge">Protection for your eyes</div>
+      <h1>Browse without <em>fear.</em></h1>
+      <p>ScrollVeil detects and blurs inappropriate images before you see them. AI-powered, privacy-first content protection that works everywhere you browse.</p>
+      <a href="#install" class="cta-btn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Add to Chrome — Free
+      </a>
+    </div>
+  </section>
+
+  <!-- Features -->
+  <section class="features" id="features">
+    <div class="container">
+      <div class="features-grid">
+        <div class="feature-card">
+          <div class="feature-icon">🔒</div>
+          <h3>Instant Protection</h3>
+          <p>Images are blurred by CSS before they even load. You never see inappropriate content — ScrollVeil catches it first.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🧠</div>
+          <h3>AI Detection</h3>
+          <p>Multiple ML models work together — person detection, pose estimation, skin analysis, and clothing classification — all running locally.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🎬</div>
+          <h3>Video Analysis</h3>
+          <p>Videos are sampled frame-by-frame with live score updates. You stay protected even with autoplay and streaming content.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🔤</div>
+          <h3>Language Scoring</h3>
+          <p>Reads titles, captions, and surrounding text to catch content that images alone might miss. Visual and language scores work together.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">⚙️</div>
+          <h3>Your Controls</h3>
+          <p>Set your own blur strength, auto-reveal threshold, and video analysis settings. ScrollVeil informs — you decide.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🌐</div>
+          <h3>Works Everywhere</h3>
+          <p>YouTube, X/Twitter, Google Images, and any website. Platform-specific handling ensures reliable protection across the web.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- How It Works -->
+  <section class="how-it-works" id="how-it-works">
+    <div class="container">
+      <div class="section-label">How It Works</div>
+      <h2 class="section-title">Protection in milliseconds.</h2>
+      <div class="steps">
+        <div class="step">
+          <div class="step-number">1</div>
+          <div>
+            <h3>Blur first, ask questions later</h3>
+            <p>A CSS shield blurs all images and videos the instant a page loads — before any content renders. You never see anything unfiltered.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-number">2</div>
+          <div>
+            <h3>AI analyzes each image</h3>
+            <p>COCO-SSD detects people. BlazeFace finds faces. BlazePose maps body poses. MobileNet identifies clothing. Skin detection measures exposure. All locally, all private.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-number">3</div>
+          <div>
+            <h3>Safe content is revealed</h3>
+            <p>If the score is below your threshold, the blur is removed automatically. You see a small badge showing the score. Click it for full details about what was detected.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-number">4</div>
+          <div>
+            <h3>You're always in control</h3>
+            <p>Flagged content stays blurred with a "Reveal" option. You choose whether to view it. ScrollVeil never makes that decision for you.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Screenshots -->
+  <section class="screenshots" id="screenshots">
+    <div class="container">
+      <div class="section-label">See It In Action</div>
+      <h2 class="section-title">Protection across the web.</h2>
+      <div class="screenshots-grid">
+
+        <div class="screenshot-item" onclick="openLightbox(this)">
+          <img src="screenshots/ss_01_bikini_scores.png" alt="ScrollVeil detecting bikini content on Google Images with varying risk scores" loading="lazy">
+          <div class="screenshot-caption"><span class="badge badge-google">Google Images</span> Real-time detection with risk scores on every image</div>
+        </div>
+
+        <div class="screenshot-item" onclick="openLightbox(this)">
+          <img src="screenshots/ss_09_apple_disabled.png" alt="Google Images search for apples with ScrollVeil protection disabled" loading="lazy">
+          <div class="screenshot-caption"><span class="badge badge-google">Google Images</span> Protection disabled — normal browsing view</div>
+        </div>
+
+        <div class="screenshot-item" onclick="openLightbox(this)">
+          <img src="screenshots/ss_03_tomato_detecting.png" alt="ScrollVeil analyzing tomato images in real-time" loading="lazy">
+          <div class="screenshot-caption"><span class="badge badge-google">Google Images</span> AI models analyzing each image in real-time</div>
+        </div>
+
+        <div class="screenshot-item" onclick="openLightbox(this)">
+          <img src="screenshots/ss_05_tomato_clean.png" alt="Tomato images scored at 1% risk, all safe" loading="lazy">
+          <div class="screenshot-caption"><span class="badge badge-google">Google Images</span> Safe content detected at 1% — no false positives</div>
+        </div>
+
+        <div class="screenshot-item" onclick="openLightbox(this)">
+          <img src="screenshots/ss_06_apple_modal.png" alt="ScrollVeil detail modal showing 1% safe score for apple image" loading="lazy">
+          <div class="screenshot-caption"><span class="badge badge-google">Google Images</span> Detail modal — apple detected, 0% visual score, fully safe</div>
+        </div>
+
+        <div class="screenshot-item" onclick="openLightbox(this)">
+          <img src="screenshots/ss_08_apple_modal_popup.png" alt="ScrollVeil detail modal and settings popup side by side" loading="lazy">
+          <div class="screenshot-caption"><span class="badge badge-google">Google Images</span> Detail modal with full settings panel visible</div>
+        </div>
+
+        <div class="screenshot-item" onclick="openLightbox(this)">
+          <img src="screenshots/ss_11_bikini_detail.png" alt="ScrollVeil detail modal showing 81% risk score with full breakdown" loading="lazy">
+          <div class="screenshot-caption"><span class="badge badge-google">Google Images</span> 81% risk — visual score, clothing detection, and language analysis</div>
+        </div>
+
+        <div class="screenshot-item" onclick="openLightbox(this)">
+          <img src="screenshots/ss_07_bikini_modal.png" alt="ScrollVeil detail modal showing full detection breakdown" loading="lazy">
+          <div class="screenshot-caption"><span class="badge badge-google">Google Images</span> Full detection breakdown with clothing and language scoring</div>
+        </div>
+
+        <div class="screenshot-item" onclick="openLightbox(this)">
+          <img src="screenshots/ss_02_tomato_disabled.png" alt="Tomato search with protection disabled showing popup settings" loading="lazy">
+          <div class="screenshot-caption"><span class="badge badge-google">Google Images</span> Settings popup with video analysis controls</div>
+        </div>
+
+        <div class="screenshot-item" onclick="openLightbox(this)">
+          <img src="screenshots/ss_04_tomato_detected.png" alt="Tomato images detected at 1% with popup showing settings" loading="lazy">
+          <div class="screenshot-caption"><span class="badge badge-google">Google Images</span> Detection complete — all images scored and badged</div>
+        </div>
+
+        <div class="screenshot-item" onclick="openLightbox(this)">
+          <img src="screenshots/ss_10_twitter.png" alt="ScrollVeil analyzing content on X/Twitter" loading="lazy">
+          <div class="screenshot-caption"><span class="badge badge-twitter">X / Twitter</span> Real-time analysis on social media posts</div>
+        </div>
+
+        <div class="screenshot-item" onclick="openLightbox(this)">
+          <img src="screenshots/ss_12_instagram.png" alt="ScrollVeil detail modal on Instagram showing 30% score" loading="lazy">
+          <div class="screenshot-caption"><span class="badge badge-instagram">Instagram</span> Detail modal with skin analysis on Instagram content</div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- Principles -->
+  <section class="principles" id="principles">
+    <div class="container">
+      <div class="section-label">Our Principles</div>
+      <h2 class="section-title">Built differently.</h2>
+      <div class="principles-grid">
+        <div class="principle">
+          <h3>🔐 Privacy by design</h3>
+          <p>Every image is analyzed locally in your browser. Nothing is ever sent to a server. No accounts, no tracking, no analytics. Your browsing stays yours.</p>
+        </div>
+        <div class="principle">
+          <h3>🧹 Ethically trained AI</h3>
+          <p>Our detection models were trained on clean datasets — no one was exposed to harmful content to build this tool. We refuse to use models that compromise ethics for accuracy.</p>
+        </div>
+        <div class="principle">
+          <h3>👤 User autonomy</h3>
+          <p>ScrollVeil informs you about content — it never decides for you. Blurred content always has a reveal option. You set your own sensitivity thresholds.</p>
+        </div>
+        <div class="principle">
+          <h3>💡 Transparent scoring</h3>
+          <p>Every score comes with detailed reasons — which models detected what, how much skin was found, what the language analysis revealed. No black boxes.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <section class="cta-section" id="install">
+    <div class="container">
+      <h2>Take back your browsing.</h2>
+      <p>Free. Private. No account needed.</p>
+      <a href="#" class="cta-btn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Add to Chrome — Free
+      </a>
+    </div>
+  </section>
+
+  <!-- Privacy Policy -->
+  <section class="privacy" id="privacy">
+    <div class="container">
+      <div class="section-label">Legal</div>
+      <h2 class="section-title">Privacy Policy</h2>
+      <div class="privacy-content">
+        <p class="privacy-date">Last updated: March 6, 2026</p>
+
+        <h3>Overview</h3>
+        <p>ScrollVeil is a browser extension that protects users from unwanted visual content. This privacy policy explains how ScrollVeil handles your data. The short version: it doesn't collect any.</p>
+
+        <h3>Data Collection</h3>
+        <p>ScrollVeil does not collect, store, transmit, or share any personal data. Specifically:</p>
+        <ul>
+          <li>No images or videos from your browsing are ever sent to any server</li>
+          <li>No browsing history, URLs, or page content is collected</li>
+          <li>No analytics, telemetry, or usage tracking of any kind</li>
+          <li>No user accounts or registration required</li>
+          <li>No cookies are set by the extension</li>
+          <li>No third-party services receive your data</li>
+        </ul>
+
+        <h3>How Analysis Works</h3>
+        <p>All image and video analysis is performed entirely within your browser using local machine learning models (TensorFlow.js). Images are processed in memory and are never transmitted outside your device. Analysis results (scores and detection metadata) are stored temporarily in browser memory and are cleared when you navigate away or close the tab.</p>
+
+        <h3>Settings Storage</h3>
+        <p>Your preferences (blur strength, auto-unblur threshold, video analysis settings) are stored using Chrome's built-in sync storage API. This data is managed entirely by Chrome and syncs across your devices if you're signed into Chrome. ScrollVeil does not have access to any other Chrome sync data.</p>
+
+        <h3>Bug Reports</h3>
+        <p>If you choose to submit a bug report through the extension, you will be directed to a Google Form. Bug reports are entirely voluntary and may include the page URL and detection details. No data is sent automatically — you review and submit the form yourself.</p>
+
+        <h3>Permissions</h3>
+        <p>ScrollVeil requests the following browser permissions:</p>
+        <ul>
+          <li><strong>activeTab</strong> — to analyze images and videos on the current page</li>
+          <li><strong>storage</strong> — to save your settings preferences</li>
+          <li><strong>offscreen</strong> — to run TensorFlow.js ML models in a sandboxed environment</li>
+          <li><strong>host_permissions (all URLs)</strong> — to provide protection on every website you visit</li>
+        </ul>
+
+        <h3>Third-Party Models</h3>
+        <p>ScrollVeil uses open-source machine learning models (COCO-SSD, BlazeFace, BlazePose, MobileNet) loaded from TensorFlow Hub CDN. The model weights are downloaded once and cached by your browser. No user data is sent to TensorFlow Hub — only the model files are downloaded.</p>
+
+        <h3>Children's Privacy</h3>
+        <p>ScrollVeil is designed to help protect users of all ages from inappropriate content. The extension does not knowingly collect any data from children or any other users.</p>
+
+        <h3>Changes to This Policy</h3>
+        <p>If we update this privacy policy, the changes will be posted on this page with an updated date. Continued use of ScrollVeil after changes constitutes acceptance of the updated policy.</p>
+
+        <h3>Contact</h3>
+        <p>For questions about this privacy policy or ScrollVeil, contact us at <a href="mailto:support@scrollveil.com">support@scrollveil.com</a>.</p>
+
+        <p style="margin-top: 32px; color: var(--text-muted); font-size: 13px;">© 2026 Michael Arold. All rights reserved.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer>
+    <div class="container">
+      <p>© 2026 ScrollVeil by Michael Arold. All rights reserved.</p>
+    </div>
+  </footer>
+
+  <!-- Lightbox -->
+  <div class="lightbox" id="lightbox" onclick="closeLightbox()">
+    <img id="lightbox-img" src="" alt="Screenshot enlarged">
+  </div>
+
+  <script>
+    function openLightbox(item) {
+      const img = item.querySelector('img');
+      document.getElementById('lightbox-img').src = img.src;
+      document.getElementById('lightbox').classList.add('active');
+    }
+    function closeLightbox() {
+      document.getElementById('lightbox').classList.remove('active');
+    }
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closeLightbox();
+    });
+  </script>
+
+</body>
+</html>

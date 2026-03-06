@@ -1,0 +1,57 @@
+SCROLLVEIL PRIVACY POLICY
+=========================
+
+Last Updated: January 2025
+
+
+OVERVIEW
+--------
+ScrollVeil is a browser extension that filters inappropriate images and videos while you browse the web. Your privacy is important to us. This policy explains what data ScrollVeil does and does not collect.
+
+
+WHAT DATA SCROLLVEIL COLLECTS
+-----------------------------
+ScrollVeil does NOT collect any personal data. Specifically:
+
+• No browsing history is collected or stored
+• No images or videos are sent to external servers
+• No personal information is collected
+• No analytics or tracking is used
+• No data is shared with third parties
+
+
+HOW SCROLLVEIL WORKS
+--------------------
+All image and video analysis happens locally on your device. When ScrollVeil analyzes an image:
+
+1. The image is processed entirely within your browser
+2. No image data is transmitted to any external server
+3. Analysis results are not stored or logged
+
+ScrollVeil uses Chrome's local storage to save your preferences (such as your chosen sensitivity mode). These settings are stored only on your device and are never transmitted elsewhere.
+
+
+PERMISSIONS EXPLAINED
+---------------------
+ScrollVeil requires certain browser permissions to function:
+
+• "Access to all websites" - Required to analyze images on any website you visit. ScrollVeil does not track which websites you visit.
+
+• "Storage" - Required to save your filter settings locally on your device.
+
+
+DATA SECURITY
+-------------
+Since all processing happens locally on your device and no data is transmitted to external servers, your browsing activity remains completely private.
+
+
+CHANGES TO THIS POLICY
+----------------------
+If we make changes to this privacy policy, we will update the "Last Updated" date above.
+
+
+CONTACT
+-------
+If you have questions about this privacy policy or ScrollVeil, please contact us at:
+
+Email: mikearold@gmail.com

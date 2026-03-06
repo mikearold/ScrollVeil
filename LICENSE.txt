@@ -1,0 +1,32 @@
+ScrollVeil - Content Filtering Chrome Extension
+Copyright © 2025 Michael Arold. All Rights Reserved.
+
+PROPRIETARY LICENSE
+
+This software and associated documentation files (the "Software") are the
+proprietary and confidential property of Michael Arold.
+
+RESTRICTIONS:
+1. You may NOT copy, modify, merge, publish, distribute, sublicense, and/or
+   sell copies of the Software without explicit written permission.
+
+2. You may NOT reverse engineer, decompile, or disassemble the Software.
+
+3. You may NOT remove or alter any copyright notices contained within the Software.
+
+4. The Software is provided "AS IS", without warranty of any kind, express or
+   implied, including but not limited to the warranties of merchantability,
+   fitness for a particular purpose and noninfringement.
+
+5. In no event shall the copyright holder be liable for any claim, damages or
+   other liability, whether in an action of contract, tort or otherwise, arising
+   from, out of or in connection with the Software or the use or other dealings
+   in the Software.
+
+PERMITTED USE:
+Personal use of this Software as installed through authorized channels is permitted.
+
+For licensing inquiries or permission requests, please contact:
+[mikearold@gmail.com]
+
+All rights reserved.

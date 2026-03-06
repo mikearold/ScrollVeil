@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>ScrollVeil Detection Test Harness</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', sans-serif; background: #1a1a2e; color: #e0e0e0; padding: 20px; }
+    h1 { color: #00d4ff; margin-bottom: 10px; }
+    h2 { color: #aaa; font-size: 14px; font-weight: normal; margin-bottom: 20px; }
+
+    .controls {
+      background: #16213e; padding: 15px; border-radius: 8px; margin-bottom: 20px;
+      display: flex; gap: 15px; align-items: center; flex-wrap: wrap;
+    }
+    .controls label { font-size: 13px; color: #aaa; }
+    .controls select, .controls input[type="text"] {
+      background: #0f3460; color: #e0e0e0; border: 1px solid #333;
+      padding: 6px 10px; border-radius: 4px; font-size: 13px;
+    }
+    .controls input[type="text"] { width: 400px; }
+    .controls button {
+      background: #00d4ff; color: #000; border: none; padding: 8px 16px;
+      border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 13px;
+    }
+    .controls button:hover { background: #00b8d9; }
+
+    .synth-controls {
+      background: #16213e; padding: 15px; border-radius: 8px; margin-bottom: 20px;
+    }
+    .synth-controls h3 { color: #00d4ff; font-size: 14px; margin-bottom: 10px; }
+    .synth-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      gap: 8px;
+    }
+    .synth-btn {
+      background: #0f3460; color: #e0e0e0; border: 1px solid #333;
+      padding: 8px; border-radius: 4px; cursor: pointer; font-size: 12px;
+      text-align: center;
+    }
+    .synth-btn:hover { background: #1a4a8a; border-color: #00d4ff; }
+
+    .results-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 15px;
+    }
+    .result-card {
+      background: #16213e; border-radius: 8px; overflow: hidden; border: 2px solid #333;
+    }
+    .result-card.allowed { border-color: #2ecc71; }
+    .result-card.blurred { border-color: #f39c12; }
+    .result-card.blocked { border-color: #e74c3c; }
+
+    .result-card .image-container {
+      width: 100%; height: 200px; overflow: hidden; background: #111;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .result-card .image-container img,
+    .result-card .image-container canvas {
+      max-width: 100%; max-height: 200px; object-fit: contain;
+    }
+
+    .result-card .info { padding: 12px; }
+    .result-card .score-bar {
+      height: 6px; background: #333; border-radius: 3px; margin-bottom: 8px; overflow: hidden;
+    }
+    .result-card .score-fill { height: 100%; border-radius: 3px; transition: width 0.3s; }
+    .result-card .score-fill.low { background: #2ecc71; }
+    .result-card .score-fill.med { background: #f39c12; }
+    .result-card .score-fill.high { background: #e74c3c; }
+
+    .result-card .decision {
+      font-size: 14px; font-weight: bold; margin-bottom: 4px;
+    }
+    .result-card .decision.allowed { color: #2ecc71; }
+    .result-card .decision.blurred { color: #f39c12; }
+    .result-card .decision.blocked { color: #e74c3c; }
+
+    .result-card .details { font-size: 11px; color: #888; line-height: 1.6; }
+    .result-card .details .label { color: #aaa; display: inline-block; width: 110px; }
+    .result-card .name { font-size: 12px; color: #ccc; margin-bottom: 6px; word-break: break-all; }
+
+    .summary {
+      background: #16213e; padding: 15px; border-radius: 8px; margin-bottom: 20px;
+      display: none;
+    }
+    .summary.visible { display: block; }
+    .summary-stats { display: flex; gap: 30px; }
+    .summary-stat { text-align: center; }
+    .summary-stat .num { font-size: 28px; font-weight: bold; }
+    .summary-stat .lbl { font-size: 12px; color: #888; }
+    .summary-stat.allowed .num { color: #2ecc71; }
+    .summary-stat.blurred .num { color: #f39c12; }
+    .summary-stat.blocked .num { color: #e74c3c; }
+  </style>
+</head>
+<body>
+  <h1>ScrollVeil Detection Test Harness</h1>
+  <h2>Test the pixel detection algorithm with synthetic images and URLs</h2>
+
+  <div class="controls">
+    <div>
+      <label>Mode:</label>
+      <select id="mode">
+        <option value="strict">Strict</option>
+        <option value="balanced" selected>Balanced</option>
+        <option value="permissive">Permissive</option>
+      </select>
+    </div>
+    <div>
+      <label>Image URL:</label>
+      <input type="text" id="imageUrl" placeholder="Paste an image URL to test...">
+    </div>
+    <button onclick="testUrl()">Test URL</button>
+    <button onclick="clearResults()">Clear All</button>
+  </div>
+
+  <div class="synth-controls">
+    <h3>Synthetic Test Images (generated pixel patterns that simulate real-world scenarios)</h3>
+    <div class="synth-grid">
+      <div class="synth-btn" onclick="testSynthetic('beach')">🏖️ Sandy Beach</div>
+      <div class="synth-btn" onclick="testSynthetic('sunset')">🌅 Sunset Sky</div>
+      <div class="synth-btn" onclick="testSynthetic('wood')">🪵 Wood Texture</div>
+      <div class="synth-btn" onclick="testSynthetic('building')">🏢 Tan Building</div>
+      <div class="synth-btn" onclick="testSynthetic('food')">🍞 Bread/Pastry</div>
+      <div class="synth-btn" onclick="testSynthetic('forest')">🌲 Green Forest</div>
+      <div class="synth-btn" onclick="testSynthetic('bluesky')">☁️ Blue Sky</div>
+      <div class="synth-btn" onclick="testSynthetic('redcar')">🚗 Red Car</div>
+      <div class="synth-btn" onclick="testSynthetic('skintone_light')">👤 Light Skin Tone</div>
+      <div class="synth-btn" onclick="testSynthetic('skintone_medium')">👤 Medium Skin Tone</div>
+      <div class="synth-btn" onclick="testSynthetic('skintone_dark')">👤 Dark Skin Tone</div>
+      <div class="synth-btn" onclick="testSynthetic('highskin')">⚠️ 70% Skin Fill</div>
+      <div class="synth-btn" onclick="testSynthetic('anime_colorful')">🎨 Colorful Anime BG</div>
+      <div class="synth-btn" onclick="testSynthetic('dog')">🐕 Brown Dog</div>
+      <div class="synth-btn" onclick="testSynthetic('flowers')">🌺 Colorful Flowers</div>
+      <div class="synth-btn" onclick="testSynthetic('bodyskin')">⚠️ Body-Shaped Skin</div>
+      <div class="synth-btn" onclick="runAllSynthetic()">▶️ Run ALL Tests</div>
+    </div>
+  </div>
+
+  <div class="summary" id="summary">
+    <div class="summary-stats">
+      <div class="summary-stat allowed"><div class="num" id="allowedCount">0</div><div class="lbl">ALLOWED</div></div>
+      <div class="summary-stat blurred"><div class="num" id="blurredCount">0</div><div class="lbl">BLURRED</div></div>
+      <div class="summary-stat blocked"><div class="num" id="blockedCount">0</div><div class="lbl">BLOCKED</div></div>
+    </div>
+  </div>
+
+  <div class="results-grid" id="results"></div>
+
+  <script src="detector.js"></script>
+  <script>
+    const detector = new ScrollVeilDetector(document.getElementById('mode').value);
+
+    document.getElementById('mode').addEventListener('change', function() {
+      detector.setMode(this.value);
+    });
+
+    // Generate synthetic test images
+    function generateSynthetic(type) {
+      const canvas = document.createElement('canvas');
+      canvas.width = 299;
+      canvas.height = 299;
+      const ctx = canvas.getContext('2d');
+
+      switch(type) {
+        case 'beach': {
+          // Top: blue sky, Bottom: sandy tan
+          const sky = ctx.createLinearGradient(0, 0, 0, 120);
+          sky.addColorStop(0, '#87CEEB');
+          sky.addColorStop(1, '#ADD8E6');
+          ctx.fillStyle = sky;
+          ctx.fillRect(0, 0, 299, 120);
+
+          // Sand - this is the problematic color range
+          for (let y = 120; y < 299; y++) {
+            for (let x = 0; x < 299; x++) {
+              const r = 210 + Math.random() * 30;
+              const g = 180 + Math.random() * 25;
+              const b = 130 + Math.random() * 20;
+              ctx.fillStyle = `rgb(${r},${g},${b})`;
+              ctx.fillRect(x, y, 1, 1);
+            }
+          }
+          return { canvas, name: 'Sandy Beach', expected: 'ALLOWED' };
+        }
+
+        case 'sunset': {
+          const grad = ctx.createLinearGradient(0, 0, 0, 299);
+          grad.addColorStop(0, '#FF6B35');
+          grad.addColorStop(0.3, '#FF8C42');
+          grad.addColorStop(0.5, '#FFB347');
+          grad.addColorStop(0.7, '#FFD700');
+          grad.addColorStop(1, '#FFA07A');
+          ctx.fillStyle = grad;
+          ctx.fillRect(0, 0, 299, 299);
+          // Add some noise
+          for (let i = 0; i < 500; i++) {
+            ctx.fillStyle = `rgba(${200+Math.random()*55}, ${100+Math.random()*100}, ${50+Math.random()*50}, 0.3)`;
+            ctx.fillRect(Math.random()*299, Math.random()*299, 3, 3);
+          }
+          return { canvas, name: 'Sunset Sky', expected: 'ALLOWED' };
+        }
+
+        case 'wood': {
+          for (let y = 0; y < 299; y++) {
+            for (let x = 0; x < 299; x++) {
+              const base = Math.sin(y * 0.1 + x * 0.02) * 20;
+              const r = 160 + base + Math.random() * 15;
+              const g = 120 + base * 0.7 + Math.random() * 10;
+              const b = 80 + base * 0.4 + Math.random() * 10;
+              ctx.fillStyle = `rgb(${r},${g},${b})`;
+              ctx.fillRect(x, y, 1, 1);
+            }
+          }
+          return { canvas, name: 'Wood Texture', expected: 'ALLOWED' };
+        }
+
+        case 'building': {
+          // Tan/beige building facade
+          ctx.fillStyle = '#D2B48C';
+          ctx.fillRect(0, 0, 299, 299);
+          // Windows
+          ctx.fillStyle = '#4A6FA5';
+          for (let row = 0; row < 5; row++) {
+            for (let col = 0; col < 4; col++) {
+              ctx.fillRect(25 + col * 70, 20 + row * 55, 40, 35);
+            }
+          }
+          return { canvas, name: 'Tan Building', expected: 'ALLOWED' };
+        }
+
+        case 'food': {
+          // Bread-colored circular shape
+          ctx.fillStyle = '#F5F5DC'; // plate
+          ctx.fillRect(0, 0, 299, 299);
+          // Bread
+          for (let y = 50; y < 250; y++) {
+            for (let x = 50; x < 250; x++) {
+              const dist = Math.sqrt(Math.pow(x-150,2) + Math.pow(y-150,2));
+              if (dist < 90) {
+                const r = 200 + Math.random() * 40;
+                const g = 160 + Math.random() * 30;
+                const b = 100 + Math.random() * 20;
+                ctx.fillStyle = `rgb(${r},${g},${b})`;
+                ctx.fillRect(x, y, 1, 1);
+              }
+            }
+          }
+          return { canvas, name: 'Bread/Pastry', expected: 'ALLOWED' };
+        }
+
+        case 'forest': {
+          for (let y = 0; y < 299; y++) {
+            for (let x = 0; x < 299; x++) {
+              const r = 20 + Math.random() * 60;
+              const g = 80 + Math.random() * 100;
+              const b = 20 + Math.random() * 50;
+              ctx.fillStyle = `rgb(${r},${g},${b})`;
+              ctx.fillRect(x, y, 1, 1);
+            }
+          }
+          return { canvas, name: 'Green Forest', expected: 'ALLOWED' };
+        }
+
+        case 'bluesky': {
+          const grad = ctx.createLinearGradient(0, 0, 0, 299);
+          grad.addColorStop(0, '#1E90FF');
+          grad.addColorStop(1, '#87CEEB');
+          ctx.fillStyle = grad;
+          ctx.fillRect(0, 0, 299, 299);
+          // Clouds
+          ctx.fillStyle = 'rgba(255,255,255,0.8)';
+          ctx.beginPath(); ctx.arc(100, 100, 40, 0, Math.PI*2); ctx.fill();
+          ctx.beginPath(); ctx.arc(140, 90, 35, 0, Math.PI*2); ctx.fill();
+          ctx.beginPath(); ctx.arc(200, 150, 45, 0, Math.PI*2); ctx.fill();
+          return { canvas, name: 'Blue Sky', expected: 'ALLOWED' };
+        }
+
+        case 'redcar': {
+          ctx.fillStyle = '#555';
+          ctx.fillRect(0, 0, 299, 299);
+          // Car body
+          ctx.fillStyle = '#CC0000';
+          ctx.fillRect(30, 120, 240, 80);
+          ctx.fillRect(60, 70, 180, 60);
+          // Wheels
+          ctx.fillStyle = '#222';
+          ctx.beginPath(); ctx.arc(90, 210, 30, 0, Math.PI*2); ctx.fill();
+          ctx.beginPath(); ctx.arc(210, 210, 30, 0, Math.PI*2); ctx.fill();
+          return { canvas, name: 'Red Car', expected: 'ALLOWED' };
+        }
+
+        case 'skintone_light': {
+          // Light skin fills only upper 1/3 (simulating a face), rest is dark clothing
+          ctx.fillStyle = '#2C2C2C'; // dark clothing
+          ctx.fillRect(0, 0, 299, 299);
+          // Face area
+          for (let y = 20; y < 100; y++) {
+            for (let x = 100; x < 200; x++) {
+              const r = 230 + Math.random() * 15;
+              const g = 190 + Math.random() * 15;
+              const b = 160 + Math.random() * 15;
+              ctx.fillStyle = `rgb(${r},${g},${b})`;
+              ctx.fillRect(x, y, 1, 1);
+            }
+          }
+          return { canvas, name: 'Light Skin (Face Only)', expected: 'ALLOWED' };
+        }
+
+        case 'skintone_medium': {
+          ctx.fillStyle = '#2C2C2C';
+          ctx.fillRect(0, 0, 299, 299);
+          for (let y = 20; y < 100; y++) {
+            for (let x = 100; x < 200; x++) {
+              const r = 180 + Math.random() * 15;
+              const g = 130 + Math.random() * 15;
+              const b = 90 + Math.random() * 15;
+              ctx.fillStyle = `rgb(${r},${g},${b})`;
+              ctx.fillRect(x, y, 1, 1);
+            }
+          }
+          return { canvas, name: 'Medium Skin (Face Only)', expected: 'ALLOWED' };
+        }
+
+        case 'skintone_dark': {
+          ctx.fillStyle = '#2C2C2C';
+          ctx.fillRect(0, 0, 299, 299);
+          for (let y = 20; y < 100; y++) {
+            for (let x = 100; x < 200; x++) {
+              const r = 120 + Math.random() * 15;
+              const g = 80 + Math.random() * 10;
+              const b = 55 + Math.random() * 10;
+              ctx.fillStyle = `rgb(${r},${g},${b})`;
+              ctx.fillRect(x, y, 1, 1);
+            }
+          }
+          return { canvas, name: 'Dark Skin (Face Only)', expected: 'ALLOWED' };
+        }
+
+        case 'highskin': {
+          // 70% of image is skin-colored (should be flagged)
+          for (let y = 0; y < 299; y++) {
+            for (let x = 0; x < 299; x++) {
+              if (Math.random() < 0.7) {
+                const r = 200 + Math.random() * 40;
+                const g = 160 + Math.random() * 30;
+                const b = 130 + Math.random() * 20;
+                ctx.fillStyle = `rgb(${r},${g},${b})`;
+              } else {
+                ctx.fillStyle = `rgb(${50+Math.random()*30}, ${50+Math.random()*30}, ${80+Math.random()*30})`;
+              }
+              ctx.fillRect(x, y, 1, 1);
+            }
+          }
+          return { canvas, name: '70% Skin Fill (should flag)', expected: 'BLURRED' };
+        }
+
+        case 'anime_colorful': {
+          // Highly saturated colorful background (non-skin)
+          for (let y = 0; y < 299; y++) {
+            for (let x = 0; x < 299; x++) {
+              const hue = (x / 299) * 360;
+              const r = Math.sin(hue * Math.PI / 180) * 127 + 128;
+              const g = Math.sin((hue + 120) * Math.PI / 180) * 127 + 128;
+              const b = Math.sin((hue + 240) * Math.PI / 180) * 127 + 128;
+              ctx.fillStyle = `rgb(${r},${g},${b})`;
+              ctx.fillRect(x, y, 1, 1);
+            }
+          }
+          return { canvas, name: 'Colorful Anime BG', expected: 'ALLOWED' };
+        }
+
+        case 'dog': {
+          // Brown dog on green grass
+          ctx.fillStyle = '#4a7c3f'; // grass
+          ctx.fillRect(0, 0, 299, 299);
+          // Dog body - brown tones that match skin detector
+          for (let y = 80; y < 230; y++) {
+            for (let x = 50; x < 250; x++) {
+              const dist = Math.sqrt(Math.pow(x-150,2)/10000 + Math.pow(y-155,2)/5000);
+              if (dist < 1) {
+                const r = 160 + Math.random() * 30;
+                const g = 110 + Math.random() * 20;
+                const b = 60 + Math.random() * 20;
+                ctx.fillStyle = `rgb(${r},${g},${b})`;
+                ctx.fillRect(x, y, 1, 1);
+              }
+            }
+          }
+          return { canvas, name: 'Brown Dog', expected: 'ALLOWED' };
+        }
+
+        case 'flowers': {
+          ctx.fillStyle = '#2d5a27'; // green bg
+          ctx.fillRect(0, 0, 299, 299);
+          // Bright colored flowers
+          const colors = ['#FF1493', '#FF6347', '#FFD700', '#FF69B4', '#FF4500'];
+          for (let i = 0; i < 20; i++) {
+            ctx.fillStyle = colors[Math.floor(Math.random() * colors.length)];
+            ctx.beginPath();
+            ctx.arc(Math.random()*299, Math.random()*299, 15+Math.random()*20, 0, Math.PI*2);
+            ctx.fill();
+          }
+          return { canvas, name: 'Colorful Flowers', expected: 'ALLOWED' };
+        }
+
+        case 'bodyskin': {
+          // Vertical column of skin in center (simulating standing human body)
+          // Dark background
+          ctx.fillStyle = '#333333';
+          ctx.fillRect(0, 0, 299, 299);
+          // Head area (upper center)
+          for (let y = 10; y < 70; y++) {
+            for (let x = 115; x < 185; x++) {
+              const r = 220 + Math.random() * 20;
+              const g = 180 + Math.random() * 15;
+              const b = 150 + Math.random() * 15;
+              ctx.fillStyle = `rgb(${r},${g},${b})`;
+              ctx.fillRect(x, y, 1, 1);
+            }
+          }
+          // Torso (wider, middle section)
+          for (let y = 75; y < 190; y++) {
+            for (let x = 90; x < 210; x++) {
+              const r = 215 + Math.random() * 25;
+              const g = 175 + Math.random() * 15;
+              const b = 145 + Math.random() * 15;
+              ctx.fillStyle = `rgb(${r},${g},${b})`;
+              ctx.fillRect(x, y, 1, 1);
+            }
+          }
+          // Legs (two columns, lower section)
+          for (let y = 195; y < 290; y++) {
+            for (let x = 95; x < 145; x++) {
+              const r = 210 + Math.random() * 25;
+              const g = 170 + Math.random() * 15;
+              const b = 140 + Math.random() * 15;
+              ctx.fillStyle = `rgb(${r},${g},${b})`;
+              ctx.fillRect(x, y, 1, 1);
+            }
+            for (let x = 155; x < 205; x++) {
+              const r = 210 + Math.random() * 25;
+              const g = 170 + Math.random() * 15;
+              const b = 140 + Math.random() * 15;
+              ctx.fillStyle = `rgb(${r},${g},${b})`;
+              ctx.fillRect(x, y, 1, 1);
+            }
+          }
+          return { canvas, name: 'Body-Shaped Skin (should flag)', expected: 'BLURRED' };
+        }
+      }
+    }
+
+    async function analyzeCanvas(canvas, name, expected) {
+      // Create an image from canvas
+      const img = new Image();
+      img.src = canvas.toDataURL();
+      await new Promise(r => img.onload = r);
+      img.width = canvas.width;
+      img.height = canvas.height;
+
+      // Get raw pixel data for analysis
+      const ctx = canvas.getContext('2d');
+      const imageData = ctx.getImageData(0, 0, 299, 299);
+      const pixels = imageData.data;
+
+      const combinedAnalysis = detector.analyzeCombined(pixels, 299, 299);
+
+      const score = detector.calculateScore(combinedAnalysis, false);
+      const threshold = detector.thresholds[detector.mode];
+
+      let decision, action;
+      if (score >= threshold.block) { decision = 'BLOCKED'; action = 'block'; }
+      else if (score >= threshold.blur) { decision = 'BLURRED'; action = 'blur'; }
+      else { decision = 'ALLOWED'; action = 'allow'; }
+
+      const isCorrect = decision === expected;
+
+      addResultCard({
+        canvas, name, score, decision, action, expected, isCorrect,
+        analysis: combinedAnalysis
+      });
+    }
+
+    function addResultCard(data) {
+      const grid = document.getElementById('results');
+      const card = document.createElement('div');
+      card.className = `result-card ${data.action}`;
+
+      const scoreClass = data.score < 45 ? 'low' : data.score < 80 ? 'med' : 'high';
+      const correctIcon = data.expected ? (data.isCorrect ? '✅' : '❌') : '';
+
+      card.innerHTML = `
+        <div class="image-container"></div>
+        <div class="info">
+          <div class="name">${correctIcon} ${data.name}</div>
+          <div class="score-bar"><div class="score-fill ${scoreClass}" style="width:${data.score}%"></div></div>
+          <div class="decision ${data.action}">
+            ${data.decision} — Score: ${data.score}${data.expected ? ` (expected: ${data.expected})` : ''}
+          </div>
+          <div class="details">
+            <div><span class="label">Skin Ratio:</span> ${(data.analysis.skinRatio * 100).toFixed(1)}%</div>
+            <div><span class="label">Upper/Mid/Low:</span> ${(data.analysis.upperRatio * 100).toFixed(1)}% / ${(data.analysis.middleRatio * 100).toFixed(1)}% / ${(data.analysis.lowerRatio * 100).toFixed(1)}%</div>
+            <div><span class="label">Edge Mid/Low:</span> ${(data.analysis.middleEdgeRatio * 100).toFixed(1)}% / ${(data.analysis.lowerEdgeRatio * 100).toFixed(1)}%</div>
+            <div><span class="label">Avg Saturation:</span> ${(data.analysis.avgSaturation * 100).toFixed(1)}%</div>
+            <div><span class="label">Flat Color:</span> ${((data.analysis.flatColorRatio || 0) * 100).toFixed(1)}%</div>
+            <div><span class="label">Uniform Texture:</span> ${((data.analysis.uniformRatio || 0) * 100).toFixed(1)}%</div>
+            <div><span class="label">Body Shape:</span> ${data.analysis.hasBodyShape ? 'YES' : 'no'} (spread: ${((data.analysis.columnSpread || 0) * 100).toFixed(1)}%, cols: ${data.analysis.activeColumns || 'N/A'}, rows: ${data.analysis.consecutiveSkinRows || 'N/A'})</div>
+            <div><span class="label">Skin Clusters:</span> ${data.analysis.skinClusterCount || 0} clusters, largest: ${((data.analysis.largestClusterRatio || 0) * 100).toFixed(1)}% of image, smoothness: ${(data.analysis.largestClusterSmoothness || 0).toFixed(2)}, body-proportioned: ${data.analysis.isBodyProportioned ? 'YES' : 'no'}</div>
+            <div><span class="label">Anatomical:</span> score: ${(data.analysis.anatomicalScore || 0).toFixed(2)}, darkCircles: ${data.analysis.darkCircleCount || 0}, chest: ${data.analysis.hasChestCurvature ? 'YES' : 'no'}, groin: ${data.analysis.hasGroinPattern ? 'YES' : 'no'}</div>
+            <div><span class="label">Is Anime:</span> ${data.analysis.isAnime ? 'YES' : 'no'}</div>
+            <div><span class="label">Reason:</span> ${data.analysis.reason || 'N/A'}</div>
+          </div>
+        </div>
+      `;
+
+      const container = card.querySelector('.image-container');
+      if (data.canvas) {
+        container.appendChild(data.canvas);
+      }
+
+      grid.prepend(card);
+      updateSummary();
+    }
+
+    function updateSummary() {
+      const cards = document.querySelectorAll('.result-card');
+      let allowed = 0, blurred = 0, blocked = 0;
+      cards.forEach(card => {
+        if (card.classList.contains('allowed')) allowed++;
+        else if (card.classList.contains('blurred')) blurred++;
+        else if (card.classList.contains('blocked')) blocked++;
+      });
+      document.getElementById('allowedCount').textContent = allowed;
+      document.getElementById('blurredCount').textContent = blurred;
+      document.getElementById('blockedCount').textContent = blocked;
+      document.getElementById('summary').classList.add('visible');
+    }
+
+    async function testSynthetic(type) {
+      const synth = generateSynthetic(type);
+      if (synth) {
+        await analyzeCanvas(synth.canvas, synth.name, synth.expected);
+      }
+    }
+
+    async function runAllSynthetic() {
+      clearResults();
+      const types = ['beach', 'sunset', 'wood', 'building', 'food', 'forest', 'bluesky',
+                     'redcar', 'skintone_light', 'skintone_medium', 'skintone_dark',
+                     'highskin', 'anime_colorful', 'dog', 'flowers', 'bodyskin'];
+      for (const type of types) {
+        await testSynthetic(type);
+      }
+    }
+
+    async function testUrl() {
+      const url = document.getElementById('imageUrl').value.trim();
+      if (!url) return;
+
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      try {
+        await new Promise((resolve, reject) => {
+          img.onload = resolve;
+          img.onerror = reject;
+          img.src = url;
+        });
+
+        const canvas = document.createElement('canvas');
+        canvas.width = 299;
+        canvas.height = 299;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, 299, 299);
+
+        await analyzeCanvas(canvas, url.split('/').pop().substring(0, 40), null);
+      } catch (e) {
+        alert('Failed to load image. CORS may be blocking it. Try downloading the image and opening this test page locally.');
+      }
+    }
+
+    function clearResults() {
+      document.getElementById('results').innerHTML = '';
+      document.getElementById('summary').classList.remove('visible');
+    }
+  </script>
+</body>
+</html>
