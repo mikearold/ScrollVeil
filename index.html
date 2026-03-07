@@ -440,15 +440,156 @@
       color: var(--text-muted);
     }
 
+    /* ═══ Early Access Banner ═══ */
+    .early-access-banner {
+      background: linear-gradient(135deg, rgba(76, 175, 80, 0.12), rgba(60, 60, 180, 0.08));
+      border-bottom: 1px solid rgba(76, 175, 80, 0.2);
+      padding: 12px 0;
+      text-align: center;
+      font-size: 14px;
+      color: var(--text-secondary);
+    }
+    .early-access-banner strong { color: var(--accent-soft); }
+    .early-access-banner a { color: var(--accent-soft); text-decoration: underline; }
+
+    /* ═══ My Story ═══ */
+    .my-story {
+      padding: 80px 0;
+      border-top: 1px solid var(--border);
+    }
+    .story-card {
+      max-width: 720px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 48px;
+      position: relative;
+    }
+    .story-card::before {
+      content: '\201C';
+      position: absolute;
+      top: 24px;
+      left: 36px;
+      font-family: 'Playfair Display', serif;
+      font-size: 96px;
+      color: rgba(76, 175, 80, 0.12);
+      line-height: 1;
+      pointer-events: none;
+    }
+    .story-card p {
+      font-size: 16px;
+      color: var(--text-secondary);
+      line-height: 1.9;
+      margin-bottom: 20px;
+    }
+    .story-card p:last-of-type { margin-bottom: 28px; }
+    .story-card p strong { color: var(--text-primary); }
+    .story-attribution {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding-top: 24px;
+      border-top: 1px solid var(--border);
+    }
+    .story-avatar {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: var(--accent-glow);
+      border: 1px solid rgba(76, 175, 80, 0.2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+    }
+    .story-attribution-text strong {
+      display: block;
+      font-size: 15px;
+      color: var(--text-primary);
+      font-weight: 600;
+    }
+    .story-attribution-text span {
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+
+    /* ═══ Email Signup ═══ */
+    .email-signup {
+      margin-top: 32px;
+      padding: 32px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      max-width: 520px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    .email-signup h3 {
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 8px;
+      color: var(--text-primary);
+    }
+    .email-signup p {
+      font-size: 14px;
+      color: var(--text-secondary);
+      margin-bottom: 20px;
+    }
+    .email-form {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .email-form input {
+      flex: 1;
+      min-width: 200px;
+      padding: 12px 16px;
+      background: var(--bg-deep);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      color: var(--text-primary);
+      font-size: 14px;
+      font-family: inherit;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .email-form input:focus { border-color: rgba(76, 175, 80, 0.4); }
+    .email-form input::placeholder { color: var(--text-muted); }
+    .email-form button {
+      padding: 12px 24px;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+    .email-form button:hover { background: var(--accent-soft); transform: translateY(-1px); }
+    .email-note {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 10px;
+    }
+
     @media (max-width: 768px) {
       .features-grid { grid-template-columns: 1fr; }
       .principles-grid { grid-template-columns: 1fr; }
       .nav-links { gap: 16px; }
       .hero { padding: 60px 0 50px; }
+      .story-card { padding: 32px 24px; }
     }
   </style>
 </head>
 <body>
+
+  <!-- Early Access Banner -->
+  <div class="early-access-banner">
+    🎉 <strong>Early Access — Currently Free.</strong> Paid plans are coming soon. Everyone using ScrollVeil now will always know what to expect before anything changes. <a href="#stay-updated">Get notified →</a>
+  </div>
 
   <!-- Navigation -->
   <nav>
@@ -458,6 +599,7 @@
         <a href="#features">Features</a>
         <a href="#how-it-works">How It Works</a>
         <a href="#screenshots">Screenshots</a>
+        <a href="#my-story">My Story</a>
         <a href="#privacy">Privacy</a>
         <a href="#install" class="cta-btn" style="padding:8px 20px; font-size:13px; box-shadow:none;">Add to Chrome</a>
       </div>
@@ -647,15 +789,49 @@
     </div>
   </section>
 
+  <!-- My Story -->
+  <section class="my-story" id="my-story">
+    <div class="container">
+      <div class="section-label">Why I Built This</div>
+      <h2 class="section-title">My Story</h2>
+      <div class="story-card">
+        <p>I grew up during the early days of the internet. Trading magazines with friends at school. Finding the stashes the adults in my life tried to hide. Then came unlimited free internet pornography — and everything changed. <strong>It poisoned my entire generation.</strong></p>
+        <p>After that came social media, and with social media the rise of the influencer. Sex sells, so flash forward to today and practically everything you encounter online is engineered to engage lust. It is relentless, it is everywhere, and for a long time I had no answer to it.</p>
+        <p>I had to quit social media altogether. And it was only then — through much prayer, through a long and humbling road — that I was finally able to break free from a lifetime of pornography addiction. <strong>Praise God, I am finally free.</strong></p>
+        <p>Looking back, I realized that the internet and social media weren't just passive bystanders in my addiction. They were active contributors. The constant flood of suggestive imagery made real freedom nearly impossible. I had the idea to actively filter this content, but I had no way to make that vision a reality.</p>
+        <p>Then came AI. And in particular, Claude. With Claude's help I was able to turn that vision into ScrollVeil — <strong>an internet rendered as safe from suggestive content as is humanly possible.</strong> God used a lifetime of struggle to lead me to this moment.</p>
+        <p>My goal is simple: help others avoid what I went through, or find the same freedom I found. And to do it for the cost of a cheap coffee. <em>You deserve a clean internet.</em></p>
+        <div class="story-attribution">
+          <div class="story-avatar">✝️</div>
+          <div class="story-attribution-text">
+            <strong>Michael Arold</strong>
+            <span>Creator of ScrollVeil</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <!-- CTA -->
   <section class="cta-section" id="install">
     <div class="container">
       <h2>Take back your browsing.</h2>
-      <p>Free. Private. No account needed.</p>
+      <p>Free during early access. Private. No account needed.</p>
       <a href="#" class="cta-btn">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
         Add to Chrome — Free
       </a>
+
+      <!-- Email Signup -->
+      <div class="email-signup" id="stay-updated">
+        <h3>📬 Stay in the loop</h3>
+        <p>Get notified when the Android app launches and lock in founder pricing before it goes public.</p>
+        <div class="email-form">
+          <input type="email" placeholder="your@email.com" id="email-input">
+          <button onclick="handleEmailSignup()">Notify Me</button>
+        </div>
+        <p class="email-note">No spam. Unsubscribe anytime. We'll only email you about ScrollVeil updates.</p>
+      </div>
     </div>
   </section>
 
@@ -729,6 +905,26 @@
   </div>
 
   <script>
+    function handleEmailSignup() {
+      const input = document.getElementById('email-input');
+      const email = input.value.trim();
+      if (!email || !email.includes('@')) {
+        input.style.borderColor = 'rgba(255, 80, 80, 0.5)';
+        input.focus();
+        return;
+      }
+      // TODO: Replace this block with Mailchimp API call when account is set up
+      const form = input.parentElement;
+      const signup = input.closest('.email-signup');
+      signup.innerHTML = `
+        <div style="text-align:center; padding: 12px 0;">
+          <div style="font-size: 32px; margin-bottom: 12px">✅</div>
+          <strong style="color: var(--text-primary); font-size: 16px;">You're on the list!</strong>
+          <p style="color: var(--text-secondary); margin-top: 8px; margin-bottom: 0;">We'll reach out when Android launches and before any pricing changes. Thank you for being an early supporter.</p>
+        </div>
+      `;
+    }
+
     function openLightbox(item) {
       const img = item.querySelector('img');
       document.getElementById('lightbox-img').src = img.src;

@@ -380,6 +380,33 @@ New `scroll` event listener with 300ms debounce fires an immediate rescan when t
 - `content.js` — Added `srcset`/`loading` to attributeFilter (~line 3092), expanded attribute mutation handler (~line 3042), added scroll-triggered rescan with debounce (~line 3157)
 - `DEVLOG.md` — this entry
 
+---
+
+## 2026-03-07 — Website: Early Access Messaging, My Story, Email Signup + CHANGELOG
+
+### What Changed
+Major website update ahead of launch to set honest user expectations and add personal context.
+
+### Early Access Banner
+Added a prominent banner at the very top of the page (above nav) clearly stating ScrollVeil is free during early access and that paid plans are coming — with a link to the email signup. Users will never be surprised by a paywall.
+
+### My Story Section
+Added a personal testimony section from Michael Arold explaining the real-life experiences that motivated ScrollVeil — growing up with early internet, social media's role in addiction, recovery through faith, and the AI-assisted journey to build this tool. Placed before the CTA section for maximum emotional impact. Signed with name and "Creator of ScrollVeil."
+
+### Email Signup
+Added an email capture form to the CTA section with a "Stay in the loop" callout — notifies users when Android launches and before any pricing changes. Currently shows a confirmation message on submit. TODO: wire up to Mailchimp when account is created.
+
+### Navigation
+Added "My Story" link to the nav bar.
+
+### CHANGELOG.md
+Created `CHANGELOG.md` — user-facing version history using semantic versioning (MAJOR.MINOR.PATCH). v1.0.0 documents all features in the initial release. Upcoming section notes Android, accounts, and paid plans.
+
+### Files Modified
+- `index.html` — Early access banner, My Story section, email signup form + handler, nav update, CTA text update
+- `CHANGELOG.md` — new file, v1.0.0 initial release
+- `DEVLOG.md` — this entry
+
 
 ---
 
