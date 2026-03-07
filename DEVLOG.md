@@ -41,6 +41,21 @@ The `setInterval` calling `sampleOneFrame()` could fire while the previous frame
 
 ---
 
+## 2026-03-07 — Default Auto-Unblur Changed to 0% (Manual Only)
+
+### Summary
+Changed the default auto-unblur threshold from 20% to 0%, meaning new installs will require users to manually reveal every blurred image unless they change the setting.
+
+### Rationale
+The safest default experience is full protection — everything stays blurred until the user actively chooses to reveal it. Users who want automatic unblurring of low-risk content can adjust the slider themselves.
+
+### Changes
+- `popup.js` — `SCROLLVEIL_DEFAULTS.autoUnblurThreshold`: 20 → 0
+- `popup.html` — Slider default value and display: 20% → 0%
+- `DEVLOG.md` — this entry
+
+---
+
 ## 2026-03-06 — CORS Debugging: Diagnosed "CORS BLOCKED" on All Sites
 
 ### Problem
@@ -407,6 +422,66 @@ Created `CHANGELOG.md` — user-facing version history using semantic versioning
 - `CHANGELOG.md` — new file, v1.0.0 initial release
 - `DEVLOG.md` — this entry
 
+---
+
+## 2026-03-07 — Feature: Draggable + Resizable Scoring Popup
+
+### What Changed
+The scoring/detail popup (`showUnblurPopup`) is now draggable and resizable.
+
+### Drag to Move
+- Popup header acts as a drag handle (cursor changes to grab/grabbing)
+- On mousedown, popup converts from transform-centered to fixed top/left positioning
+- Mouse move tracks offset and repositions popup, clamped within viewport bounds
+- Backdrop click-to-close is disabled while dragging to prevent accidental closes
+- Small "drag to move" hint text added to header
+
+### Resize
+- CSS `resize:both` on popup element enables native browser resize grip (bottom-right corner)
+- `min-width:260px`, `min-height:180px` prevent shrinking too small
+
+### Files Modified
+- `content.js` — Updated `showUnblurPopup`: backdrop layout, popup positioning, header drag handle, drag event listeners, backdrop click guard
+- `DEVLOG.md` — this entry
+
+---
+
+## 2026-03-07 — Fix: Popup Icon + Score Mismatch
+
+### Bug 1 — Wrong icon in popup header
+The popup header was showing a 🛡️ emoji instead of the actual ScrollVeil logo. Fixed by embedding the icon32.png as a base64 data URI directly in the popup HTML. This works on any website without path resolution issues.
+
+### Bug 2 — Score mismatch between badge and popup
+The reblur badge (shown after revealing an image) was using `result.score` (visual score only) while the popup correctly used `result.displayScore` (combined visual + language score). This caused the badge to show a different number than the popup.
+
+Fixed by updating the reblur badge at line ~1821 to use `displayScore` with a fallback to `result.score`, matching the popup's logic.
+
+### Files Modified
+- `content.js` — Embedded base64 icon in popup header; fixed reblur badge to use displayScore
+- `DEVLOG.md` — this entry
+
+---
+
+## 2026-03-07 — Fix: Bikini Score Floor
+
+### Problem
+A clearly visible bikini image could score as low as 10% when skin detection underperformed on a particular image size or crop. The clothing detection correctly identified bikini at 60-74% confidence but had zero effect on the final score because the `minimal` coverage type intentionally skipped the score cap (skin is real in bikinis). This left the score entirely dependent on skin detection, which is inconsistent across image resolutions.
+
+### Root Cause
+The clothing logic had two paths — cap scores DOWN for covering clothing, and do nothing for minimal clothing (bikini/swimwear). The "do nothing" path meant a 74% confidence bikini detection produced no minimum score guarantee.
+
+### Fix
+Added a score FLOOR for `minimal` and `minimal_legs` clothing types in `detector.js`:
+- Bikini/swimwear ≥ 70% confidence → score floor of **70%**
+- Bikini/swimwear ≥ 50% confidence → score floor of **60%**
+- Below 50% confidence → no floor (too uncertain to guarantee)
+
+This means a confidently detected bikini can never score below 60-70% regardless of skin detection performance.
+
+### Files Modified
+- `detector.js` — Added score floor block after clothing cap logic
+- `DEVLOG.md` — this entry
+
 
 ---
 
@@ -439,4 +514,156 @@ Added a "See It In Action" section to the ScrollVeil website (scrollveil.com) wi
 ### Files Modified
 - `index.html` — Added screenshot gallery section with lightbox
 - `screenshots/` — New folder with 12 PNG screenshots
+- `DEVLOG.md` — this entry
+
+---
+
+## 2026-03-07 — Mailchimp Email Signup Wired (Secure)
+
+### Summary
+Email signup form on scrollveil.com is now fully functional and connected to Mailchimp.
+
+### What Was Done
+- Created Cloudflare Worker `scrollveil-mailchimp` at `scrollveil-mailchimp.mikearold.workers.dev`
+- Worker acts as a secure proxy — Mailchimp API key stored as Cloudflare environment secret, never in public code
+- Updated `index.html` `handleEmailSignup()` to POST to Worker URL instead of Mailchimp directly
+- Removed previously exposed API key from codebase
+- Pushed to GitHub (commit 9f93a31)
+
+### Files Modified
+- `index.html` — Replaced direct Mailchimp call with secure Cloudflare Worker call
+- `DEVLOG.md` — this entry
+
+---
+
+## 2026-03-07 — ScrollVeil Submitted to Chrome Web Store 🎉
+
+### Summary
+ScrollVeil v1.0 has been officially submitted to the Chrome Web Store and is now **Pending Review**.
+
+### Details
+- Extension ID: `dmlhjkjiomphagapfjpblbopboohoejl`
+- Publisher: mikearold
+- Status: Pending compliance review (typically takes a few business days)
+- Store listing includes: title, summary, full description, key features, how it works section
+- Character count: 1,153 / 16,000
+
+### Launch Checklist Status
+- ✅ Website live at scrollveil.com
+- ✅ Email signup working → Mailchimp (via Cloudflare Worker)
+- ✅ support@scrollveil.com → Gmail forwarding
+- ✅ Cloudflare protecting the site
+- ✅ Privacy policy published
+- ✅ Screenshots processed and uploaded
+- ✅ ZIP packaged and uploaded (ScrollVeil_v1.0.zip)
+- ✅ **Submitted to Chrome Web Store — Pending Review**
+- 📋 Terms of Service + Refund Policy (for future paid version)
+
+### What's Next
+- Wait for Chrome Web Store review approval
+- Monitor developer dashboard for any review feedback
+- Plan post-launch priorities: video frame sampling polish, modular refactor, Android/iOS port research
+
+---
+
+## 2026-03-07 — UI: Compact Popup Layout + Collapsible Video Settings
+
+### Summary
+Reduced popup spacing to eliminate the Chrome scrollbar and made the Video Analysis section collapsible (collapsed by default).
+
+### Changes
+**Tighter spacing (popup.html CSS):**
+- Body padding: 16px → 12px
+- Header margin-bottom: 12px → 8px
+- Status toggle: padding 8px 12px → 6px 10px, margin-bottom 14px → 10px
+- Section margin/padding-bottom: 14px → 10px
+- Last section margin-bottom: 10px → 6px
+
+**Collapsible Video Analysis (popup.html + popup.js):**
+- Added `.section-toggle`, `.toggle-arrow`, `.collapsible-content` CSS classes
+- Wrapped Video Analysis controls in a collapsible container (collapsed by default)
+- Clickable header with ▸/▾ arrow toggles visibility
+- Added click handler in popup.js
+
+### Files Modified
+- `popup.html` — CSS spacing reductions, collapsible section markup and styles
+- `popup.js` — Added video toggle click handler
+- `DEVLOG.md` — this entry
+
+---
+
+## 2026-03-07 — Website: "On the Horizon" Roadmap Section
+
+### Summary
+Added a new roadmap section to scrollveil.com showcasing upcoming features, placed directly after the Features section.
+
+### Features Listed
+- **Android App** — native mobile protection
+- **iOS Browser** — custom browser since iOS blocks extension-level filtering
+- **More Browsers** — Firefox, Edge, and others
+- **Accountability Features** — optional trusted-partner reporting tools
+
+### Changes
+- Added "Roadmap" link to nav bar
+- Added "On the Horizon" section using existing feature-card grid layout
+- Section ID: `#roadmap`
+
+### Files Modified
+- `index.html` — New nav link + roadmap section
+- `DEVLOG.md` — this entry
+
+---
+
+## 2026-03-07 — Website: Combined Legal Page (ToS + Refund + Privacy)
+
+### Summary
+Created `legal.html` — a single page containing Terms of Service, Refund Policy, and Privacy Policy. Replaced the full privacy policy on the main page with a short summary and links.
+
+### Terms of Service Highlights
+- ScrollVeil provided "as is" with no guarantees of catching all content
+- IP and code are property of Michael Arold, all rights reserved
+- Users may not reverse engineer, redistribute, or build competing products
+- Governing law: United States, disputes resolved by negotiation then arbitration
+
+### Refund Policy Highlights
+- 7-day free trial, no payment required
+- Monthly ($2.99/mo): full refund within 14 days
+- Annual ($30/yr): full refund within 30 days, prorated after
+- Cancel anytime, keep access through end of billing period
+
+### Pricing Model
+- Free during Early Access
+- Paid plans: $2.99/month or $30/year
+- 7-day free trial with no paywall
+
+### Changes to index.html
+- Nav link changed from "Privacy" → "Legal" (links to legal.html)
+- Full privacy policy section replaced with short summary + links to legal.html
+
+### Files Modified
+- `legal.html` — New file with all three legal documents
+- `index.html` — Updated nav link, replaced privacy section with summary
+- `DEVLOG.md` — this entry
+
+---
+
+## 2026-03-07 — Website: Pricing Section
+
+### Summary
+Added a pricing section to scrollveil.com with three tiers: Early Access (free), Annual ($30/yr), and Monthly ($2.99/mo). Placed between the Roadmap and How It Works sections.
+
+### Pricing Tiers
+- **Early Access** — Free, all features, no account required
+- **Annual** — $30/year (16% savings), 7-day free trial, featured card with green border
+- **Monthly** — $2.99/month, 7-day free trial
+- Reassurance note: Early Access users notified before any pricing changes
+
+### Changes
+- Added Pricing CSS (card grid, featured highlight, checkmark feature lists)
+- Added mobile responsive rule for pricing grid
+- Added "Pricing" nav link
+- Added pricing section HTML with 3 cards
+
+### Files Modified
+- `index.html` — Pricing CSS, nav link, section HTML
 - `DEVLOG.md` — this entry

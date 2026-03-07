@@ -578,8 +578,89 @@
       margin-top: 10px;
     }
 
+    /* ═══ Pricing ═══ */
+    .pricing { padding: 80px 0; border-top: 1px solid var(--border); }
+    .pricing-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+      margin-top: 12px;
+    }
+    .pricing-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 32px 28px;
+      display: flex;
+      flex-direction: column;
+      transition: all 0.3s;
+    }
+    .pricing-card:hover {
+      background: var(--bg-card-hover);
+      transform: translateY(-4px);
+    }
+    .pricing-card.featured {
+      border-color: rgba(76, 175, 80, 0.3);
+      box-shadow: 0 0 32px rgba(76, 175, 80, 0.08);
+    }
+    .pricing-badge {
+      display: inline-block;
+      padding: 3px 10px;
+      background: var(--accent-glow);
+      border: 1px solid rgba(76, 175, 80, 0.2);
+      border-radius: 100px;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--accent-soft);
+      margin-bottom: 16px;
+      width: fit-content;
+    }
+    .pricing-card h3 {
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+    .pricing-price {
+      font-family: 'Playfair Display', serif;
+      font-size: 36px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+    .pricing-period {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-bottom: 20px;
+    }
+    .pricing-features {
+      list-style: none;
+      padding: 0;
+      margin: 0 0 24px 0;
+      flex: 1;
+    }
+    .pricing-features li {
+      font-size: 14px;
+      color: var(--text-secondary);
+      padding: 6px 0 6px 22px;
+      position: relative;
+      line-height: 1.6;
+    }
+    .pricing-features li::before {
+      content: '✓';
+      position: absolute;
+      left: 0;
+      color: var(--accent);
+      font-weight: 700;
+    }
+    .pricing-note {
+      text-align: center;
+      margin-top: 24px;
+      font-size: 14px;
+      color: var(--text-muted);
+    }
+
     @media (max-width: 768px) {
       .features-grid { grid-template-columns: 1fr; }
+      .pricing-grid { grid-template-columns: 1fr; }
       .principles-grid { grid-template-columns: 1fr; }
       .nav-links { gap: 16px; }
       .hero { padding: 60px 0 50px; }
@@ -600,10 +681,12 @@
       <div class="nav-brand"><img src="icons/icon32.png" alt="ScrollVeil" style="width:24px;height:24px;border-radius:6px;vertical-align:middle;margin-right:8px;">Scroll<span>Veil</span></div>
       <div class="nav-links">
         <a href="#features">Features</a>
+        <a href="#roadmap">Roadmap</a>
+        <a href="#pricing">Pricing</a>
         <a href="#how-it-works">How It Works</a>
         <a href="#screenshots">Screenshots</a>
         <a href="#my-story">My Story</a>
-        <a href="#privacy">Privacy</a>
+        <a href="legal.html">Legal</a>
         <a href="#install" class="cta-btn" style="padding:8px 20px; font-size:13px; box-shadow:none;">Add to Chrome</a>
       </div>
     </div>
@@ -657,6 +740,89 @@
           <p>YouTube, X/Twitter, Google Images, and any website. Platform-specific handling ensures reliable protection across the web.</p>
         </div>
       </div>
+    </div>
+  </section>
+
+  <!-- On the Horizon -->
+  <section class="how-it-works" id="roadmap">
+    <div class="container">
+      <div class="section-label">On the Horizon</div>
+      <h2 class="section-title">What's coming next.</h2>
+      <div class="features-grid">
+        <div class="feature-card">
+          <div class="feature-icon">📱</div>
+          <h3>Android App</h3>
+          <p>Full ScrollVeil protection on your phone and tablet. The same AI-powered filtering, built natively for Android.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🌐</div>
+          <h3>iOS Browser</h3>
+          <p>A custom privacy-focused browser for iPhone and iPad with ScrollVeil filtering built in — because iOS doesn't allow traditional extensions.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🧩</div>
+          <h3>More Browsers</h3>
+          <p>Firefox, Edge, and other popular browsers. Same protection, same privacy — wherever you browse.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🤝</div>
+          <h3>Accountability Features</h3>
+          <p>Optional reporting tools that let you share browsing activity with a trusted partner — for those who want an extra layer of support on their journey.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Pricing -->
+  <section class="pricing" id="pricing">
+    <div class="container">
+      <div class="section-label">Pricing</div>
+      <h2 class="section-title">Simple, honest pricing.</h2>
+      <div class="pricing-grid">
+
+        <div class="pricing-card">
+          <div class="pricing-badge">Now</div>
+          <h3>Early Access</h3>
+          <div class="pricing-price">Free</div>
+          <div class="pricing-period">While in early access</div>
+          <ul class="pricing-features">
+            <li>Full AI-powered content filtering</li>
+            <li>All detection models included</li>
+            <li>Video frame analysis</li>
+            <li>Customizable sensitivity</li>
+            <li>No account required</li>
+          </ul>
+        </div>
+
+        <div class="pricing-card featured">
+          <div class="pricing-badge">Best Value</div>
+          <h3>Annual</h3>
+          <div class="pricing-price">$30</div>
+          <div class="pricing-period">per year — save 16%</div>
+          <ul class="pricing-features">
+            <li>Everything in Early Access</li>
+            <li>7-day free trial</li>
+            <li>Priority support</li>
+            <li>All future features included</li>
+            <li>Cancel anytime</li>
+          </ul>
+        </div>
+
+        <div class="pricing-card">
+          <h3>Monthly</h3>
+          <div class="pricing-price">$2.99</div>
+          <div class="pricing-period">per month</div>
+          <ul class="pricing-features">
+            <li>Everything in Early Access</li>
+            <li>7-day free trial</li>
+            <li>Priority support</li>
+            <li>All future features included</li>
+            <li>Cancel anytime</li>
+          </ul>
+        </div>
+
+      </div>
+      <p class="pricing-note">Everyone using ScrollVeil during Early Access will be notified before any pricing changes. No surprises.</p>
     </div>
   </section>
 
@@ -838,59 +1004,15 @@
     </div>
   </section>
 
-  <!-- Privacy Policy -->
-  <section class="privacy" id="privacy">
+  <!-- Legal -->
+  <section class="privacy" id="legal">
     <div class="container">
       <div class="section-label">Legal</div>
-      <h2 class="section-title">Privacy Policy</h2>
+      <h2 class="section-title">Policies & Terms</h2>
       <div class="privacy-content">
-        <p class="privacy-date">Last updated: March 6, 2026</p>
-
-        <h3>Overview</h3>
-        <p>ScrollVeil is a browser extension that protects users from unwanted visual content. This privacy policy explains how ScrollVeil handles your data. The short version: it doesn't collect any.</p>
-
-        <h3>Data Collection</h3>
-        <p>ScrollVeil does not collect, store, transmit, or share any personal data. Specifically:</p>
-        <ul>
-          <li>No images or videos from your browsing are ever sent to any server</li>
-          <li>No browsing history, URLs, or page content is collected</li>
-          <li>No analytics, telemetry, or usage tracking of any kind</li>
-          <li>No user accounts or registration required</li>
-          <li>No cookies are set by the extension</li>
-          <li>No third-party services receive your data</li>
-        </ul>
-
-        <h3>How Analysis Works</h3>
-        <p>All image and video analysis is performed entirely within your browser using local machine learning models (TensorFlow.js). Images are processed in memory and are never transmitted outside your device. Analysis results (scores and detection metadata) are stored temporarily in browser memory and are cleared when you navigate away or close the tab.</p>
-
-        <h3>Settings Storage</h3>
-        <p>Your preferences (blur strength, auto-unblur threshold, video analysis settings) are stored using Chrome's built-in sync storage API. This data is managed entirely by Chrome and syncs across your devices if you're signed into Chrome. ScrollVeil does not have access to any other Chrome sync data.</p>
-
-        <h3>Bug Reports</h3>
-        <p>If you choose to submit a bug report through the extension, you will be directed to a Google Form. Bug reports are entirely voluntary and may include the page URL and detection details. No data is sent automatically — you review and submit the form yourself.</p>
-
-        <h3>Permissions</h3>
-        <p>ScrollVeil requests the following browser permissions:</p>
-        <ul>
-          <li><strong>activeTab</strong> — to analyze images and videos on the current page</li>
-          <li><strong>storage</strong> — to save your settings preferences</li>
-          <li><strong>offscreen</strong> — to run TensorFlow.js ML models in a sandboxed environment</li>
-          <li><strong>host_permissions (all URLs)</strong> — to provide protection on every website you visit</li>
-        </ul>
-
-        <h3>Third-Party Models</h3>
-        <p>ScrollVeil uses open-source machine learning models (COCO-SSD, BlazeFace, BlazePose, MobileNet) loaded from TensorFlow Hub CDN. The model weights are downloaded once and cached by your browser. No user data is sent to TensorFlow Hub — only the model files are downloaded.</p>
-
-        <h3>Children's Privacy</h3>
-        <p>ScrollVeil is designed to help protect users of all ages from inappropriate content. The extension does not knowingly collect any data from children or any other users.</p>
-
-        <h3>Changes to This Policy</h3>
-        <p>If we update this privacy policy, the changes will be posted on this page with an updated date. Continued use of ScrollVeil after changes constitutes acceptance of the updated policy.</p>
-
-        <h3>Contact</h3>
-        <p>For questions about this privacy policy or ScrollVeil, contact us at <a href="mailto:support@scrollveil.com">support@scrollveil.com</a>.</p>
-
-        <p style="margin-top: 32px; color: var(--text-muted); font-size: 13px;">© 2026 Michael Arold. All rights reserved.</p>
+        <p>ScrollVeil collects zero personal data. All analysis runs locally in your browser. Nothing is ever sent to a server.</p>
+        <p>Read our full <a href="legal.html#terms">Terms of Service</a>, <a href="legal.html#refund">Refund Policy</a>, and <a href="legal.html#privacy">Privacy Policy</a>.</p>
+        <p>Questions? Contact us at <a href="mailto:support@scrollveil.com">support@scrollveil.com</a>.</p>
       </div>
     </div>
   </section>
