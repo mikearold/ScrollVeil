@@ -822,3 +822,35 @@ Added a settings drawer and URL bar to the ScrollVeil Android app, transforming 
 ### Files Modified
 - `activity_main.xml` — Complete rewrite: FrameLayout → DrawerLayout with URL bar, settings panel, sliders, quick links
 - `MainActivity.java` — Complete rewrite: Added URL navigation, settings drawer, slider listeners, JS bridge, protection toggle
+
+---
+
+## 2026-03-09 — Website Content Cleanup for Launch
+
+### Summary
+Updated scrollveil.com landing page to remove outdated or strategically sensitive content before public launch.
+
+### Changes Made (8 edits to index.html)
+
+**Removed "no account needed" references (accounts coming in v1.1.0):**
+- Removed "No account required" from Early Access pricing card
+- Changed CTA tagline from "No account needed" → "Runs entirely on your device"
+- Removed "No accounts" from Privacy by Design principle
+
+**Fixed auto-unblur messaging (default is manual reveal):**
+- Features card: Replaced "auto-reveal threshold" with sensitivity + optional auto-reveal language
+- How It Works Step 3: Changed from "blur removed automatically" to "stays blurred until you choose to reveal" with auto-reveal as optional
+
+**Removed specific model names (proprietary protection):**
+- Features card: Replaced "person detection, pose estimation, skin analysis, clothing classification" with "proprietary AI detection stack"
+- How It Works Step 2: Replaced "COCO-SSD, BlazeFace, BlazePose, MobileNet" with "proprietary multi-layer AI pipeline"
+- Transparent scoring principle: Replaced "which models detected what" with "what was detected"
+
+**Bonus: Security fix**
+- Created `.gitignore` to prevent `API key.txt` from being pushed to the public repo
+- Unstaged the file before committing
+
+### Files Modified
+- `index.html` — 8 content edits
+- `.gitignore` — Created (excludes API key.txt and .bak files)
+- `DEVLOG.md` — this entry
