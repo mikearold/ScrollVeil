@@ -667,3 +667,158 @@ Added a pricing section to scrollveil.com with three tiers: Early Access (free),
 ### Files Modified
 - `index.html` — Pricing CSS, nav link, section HTML
 - `DEVLOG.md` — this entry
+
+---
+
+## 2026-03-08 — Android App: First Successful Build + Emulator Launch 🎉
+
+### Milestone
+ScrollVeil Android prototype built successfully and launched on Android emulator for the first time.
+
+### Build Details
+- **Build result:** BUILD SUCCESSFUL in 25s (31 actionable tasks: 16 executed, 15 up-to-date)
+- **Install result:** Install successfully finished in 4s 64ms
+- **Emulator:** Medium Phone API 36.1
+- **Project location:** `C:\Users\Family\OneDrive\Desktop\Vibe Coding\ScrollVeil Android\`
+
+### App UI Confirmed Working
+Screenshot confirmed the MainActivity settings screen displaying correctly:
+- 👁 ScrollVeil logo and "Browse with confidence" tagline
+- ⚠️ "Step 1: Enable Accessibility Service" warning banner
+- ScrollVeil Enabled toggle (ON by default)
+- Blur Strength slider at 10px (range 1px–100px)
+- "1. ENABLE ACCESSIBILITY SERVICE" button
+- "2. GRANT OVERLAY PERMISSION" button
+- "How it works" instruction steps at bottom
+
+### Architecture (4 Java files)
+| File | Role |
+|---|---|
+| `MainActivity.java` | Settings screen UI |
+| `ScrollVeilAccessibilityService.java` | Watches X app (com.twitter.android) for window/content/scroll events |
+| `BlurOverlayManager.java` | Finds media elements in accessibility tree, draws blur patches + eye badges |
+| `OverlayService.java` | Foreground service with persistent notification while X is open |
+
+### Detection Method
+Accessibility tree parsing — finds `ImageView`, `VideoView`, `SurfaceView`, `TextureView` nodes ≥ 100x80dp. No ML models needed on Android (no NudeNet, no NSFWJS). Stays ethically pure.
+
+### Blur Implementation
+- Android 12+: Native `RenderEffect.createBlurEffect()`
+- Android 11 fallback: Semi-transparent dark overlay scaled by blur radius
+
+### Next Steps
+1. Test accessibility service + overlay permission flow in emulator
+2. Open X (Twitter) app in emulator and verify images/videos blur
+3. Test reveal badge (eye icon) tap → unblur → re-blur
+4. Connect Galaxy A16 5G via wireless debugging for real device test
+5. Tune `MIN_WIDTH_DP` / `MIN_HEIGHT_DP` thresholds if needed (currently 100x80dp)
+
+### Known JDK Issue (Recurring)
+Android Studio Panda resets JDK to JDK 21 which breaks builds. Fix: `org.gradle.java.home=C:\\Program Files\\Android\\Android Studio\\jbr` in `gradle.properties`. If build fails, click the blue "Apply compatible Gradle JDK configuration and sync" link in the Build panel.
+
+---
+
+## 2026-03-08 — Android Accessibility Overlay Approach Abandoned
+
+### Summary
+After multiple iterations, the Accessibility Service + floating overlay approach for the Android app has been abandoned due to fundamental platform limitations. The old project at `C:\Dev\ScrollVeilAndroid` has been deleted.
+
+### What We Tried (3 iterations)
+1. **Coordinate-keyed overlays** — Tracked images by screen position. Overlays destroyed/recreated on every scroll, causing severe lag.
+2. **Pool-based overlays with 30fps polling** — Reused overlays by index to avoid destroy/recreate. Reduced lag slightly but overlays still trailed scrolling because the Accessibility API only reports positions *after* they change.
+3. **Faster polling + blur fixes** — Reduced throttle to 16ms, added `CrossWindowBlurEnabledListener`. Confirmed Samsung Galaxy (Android 16) does NOT support `FLAG_BLUR_BEHIND` on accessibility overlays — system reports `systemBlurSupported = false`.
+
+### Root Causes (Unfixable)
+- **Lag:** Accessibility Service events arrive *after* scroll happens. Overlay windows are separate from the app's view hierarchy and cannot scroll in sync. No amount of polling can fix this — it's a fundamental platform limitation.
+- **No blur:** `FLAG_BLUR_BEHIND` is disabled by Samsung One UI for accessibility overlay windows. Only dimming (solid dark tint) is possible. `RenderEffect.createBlurEffect()` only works on views you own, not another app's views.
+
+### VPN Approach Also Ruled Out
+Researched intercepting X's image traffic via a local VPN (`VpnService`). Blocked by X/Twitter's **certificate pinning** — the app hardcodes its TLS certificate and rejects any custom CA certificate. Would require rooting + Frida (security research tool), which is not viable for a consumer product.
+
+### Competitor Analysis: HaramBlur
+HaramBlur (290K downloads, same problem space) takes the **WebView approach** for their Android app — loads social media websites in a built-in browser rather than overlaying native apps. Their Play Store reviews confirm the same lag issues when using accessibility overlays. Their browser extension uses nsfwjs (trained on inappropriate content), which ScrollVeil avoids for ethical reasons.
+
+### Decision: Pivot to WebView Approach
+The next Android prototype will use an in-app WebView to load x.com (Twitter's mobile website). JavaScript injection allows reusing the Chrome extension's detection pipeline (content.js + TF.js models). This approach:
+- Zero lag — images blur natively inside the page
+- Real blur — CSS `filter: blur()` works perfectly in WebView
+- Proven pattern — HaramBlur uses the same architecture
+- Reuses existing code — same content.js pipeline
+
+### Lessons Learned
+1. Android's Accessibility Service is designed for *reading* other apps, not *modifying* their display. Floating overlays will always lag behind the content they try to cover.
+2. `FLAG_BLUR_BEHIND` support varies by manufacturer. Samsung One UI disables it for accessibility overlays. Cannot rely on it.
+3. Certificate pinning makes VPN-based image interception impossible without rooting.
+4. The WebView approach (in-app browser) is the only viable way to blur content on Android without native app cooperation.
+5. Always validate platform capabilities with a minimal prototype before building out features.
+
+
+---
+
+## 2026-03-08 — Android WebView Prototype Working ✅
+
+### Summary
+ScrollVeil Android v1.5.0-alpha1 is running on Michael's Samsung Galaxy. The app uses an in-app WebView to load x.com and injects the full Chrome extension detection pipeline via JavaScript. Blur, badges, and scoring all work.
+
+### Architecture
+The app is a single-activity Android app with a full-screen WebView that loads x.com's mobile website. On each page load, six files are injected in order via `evaluateJavascript()`:
+
+1. `blur-shield.css` — Instant CSS blur protection (injected as a `<style>` tag)
+2. `chrome-shim.js` — Fakes `chrome.storage` and `chrome.runtime` APIs with in-memory defaults
+3. `personDetection.js` — Person detection helpers
+4. `detector.js` — ScrollVeilDetector class (BlazeFace, COCO-SSD, BlazePose, MobileNet, skin detection)
+5. `languageScoring.js` — Text/language analysis
+6. `content.js` — Main content script (overlay badges, blur management, video sampling)
+
+### Key Technical Decisions
+- **Chrome API Shim:** Created `chrome-shim.js` to fake `chrome.storage.sync.get/set`, `chrome.storage.onChanged`, and `chrome.runtime.onMessage` so content.js runs unmodified in the WebView. Defaults: blur enabled, 30px strength.
+- **Google OAuth:** Android WebViews block Google sign-in. Fixed by intercepting `accounts.google.com` URLs and opening them in the phone's real browser via `Intent.ACTION_VIEW`.
+- **Gradle/JDK:** Android Studio Panda uses JDK 21 which requires Gradle 8.9+ and AGP 8.7.0. Gradle 8.2 fails with `JdkImageTransform` errors on JDK 21.
+
+### Build Setup
+- Project: `C:\Dev\ScrollVeilAndroid`
+- Build: `gradlew.bat assembleDebug` with `JAVA_HOME` pointing to Android Studio's bundled JBR
+- Install: ADB over WiFi (`adb connect <ip>:<port>`, `adb install -r app-debug.apk`)
+- APK: `app\build\outputs\apk\debug\app-debug.apk`
+
+### Files Created
+- `build.gradle.kts` (project + app level)
+- `settings.gradle.kts`, `gradle.properties`, `gradle-wrapper.properties`
+- `AndroidManifest.xml` — Internet permission, dark theme, network security config
+- `MainActivity.java` — WebView setup, 6-file injection pipeline, Google OAuth redirect, back navigation
+- `chrome-shim.js` — Chrome API compatibility layer
+- `activity_main.xml`, `strings.xml`, `styles.xml`, `network_security_config.xml`
+- All extension JS/CSS files copied to `app/src/main/assets/`
+
+### What's Next
+- Test detection accuracy on mobile (are badges showing correct scores?)
+- Add a settings UI for blur strength (currently hardcoded in shim defaults)
+- Investigate if TF.js model loading needs optimization for mobile performance
+- Consider adding a floating action button for reveal/re-blur all
+
+---
+
+## 2026-03-08 — Android App: Settings UI + Full Browser Mode
+
+### Summary
+Added a settings drawer and URL bar to the ScrollVeil Android app, transforming it from an X-only viewer into a full protected browser that works on any website.
+
+### New Features
+1. **URL Bar** — Top bar with text input. Type any URL and hit Go. If input has no dot, it does a Google search. Updates automatically as you navigate.
+2. **Settings Drawer** — Slides in from the right via a gear icon:
+   - **Protection Enabled** toggle — turns ScrollVeil on/off instantly. Off removes all overlays, badges, and CSS blur.
+   - **Blur Strength** slider (0–50px) — updates the CSS `--scrollveil-blur` variable live, so existing blurs change in real time.
+   - **Auto-Unblur Threshold** slider (0–100%) — pushes value into chrome-shim storage so content.js picks it up.
+3. **Quick Links** — One-tap buttons for X, Reddit, YouTube, and Instagram in the settings drawer.
+4. **Full Internet Protection** — No longer hardcoded to x.com. ScrollVeil injects its pipeline on every page load.
+
+### Technical Details
+- Layout uses `DrawerLayout` with a `LinearLayout` settings panel (gravity=end) for the slide-in drawer.
+- Settings changes are pushed into the WebView via `evaluateJavascript()` calling `chrome.storage.sync.set()` on the shim, which fires `onChanged` listeners in content.js.
+- CSS blur updates use `document.documentElement.style.setProperty('--scrollveil-blur', ...)` for instant visual feedback.
+- URL navigation adds `https://` if missing, or does a Google search for non-URL input.
+- Script injection checks for duplicate CSS injection with `getElementById` guard.
+
+### Files Modified
+- `activity_main.xml` — Complete rewrite: FrameLayout → DrawerLayout with URL bar, settings panel, sliders, quick links
+- `MainActivity.java` — Complete rewrite: Added URL navigation, settings drawer, slider listeners, JS bridge, protection toggle

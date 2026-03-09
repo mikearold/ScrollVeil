@@ -8,7 +8,7 @@
 // Single source of truth for all defaults
 const SCROLLVEIL_DEFAULTS = {
   blurStrength: 100,
-  autoUnblurThreshold: 20,
+  autoUnblurThreshold: 0,
   videoInterval: 3,
   videoDuration: 30,
   earlyExitThreshold: 75
@@ -41,6 +41,17 @@ document.addEventListener('DOMContentLoaded', function() {
   const reportTypeBtns = document.querySelectorAll('.report-type-btn');
 
   let selectedReportType = 'false-positive';
+
+  // ═══ VIDEO ANALYSIS COLLAPSIBLE TOGGLE ═══
+  const videoToggle = document.getElementById('videoToggle');
+  const videoArrow = document.getElementById('videoArrow');
+  const videoContent = document.getElementById('videoContent');
+  if (videoToggle) {
+    videoToggle.addEventListener('click', function() {
+      videoContent.classList.toggle('open');
+      videoArrow.classList.toggle('open');
+    });
+  }
 
   // ═══ PROTECTION TOGGLE (storage flag + tab reload) ═══
   function updateToggleUI(enabled) {

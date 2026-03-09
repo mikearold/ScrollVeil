@@ -1111,18 +1111,25 @@ function showUnblurPopup(result, onReveal, onCancel) {
   // Create backdrop
   var backdrop = document.createElement('div');
   backdrop.style.cssText = 'position:fixed; top:0; left:0; width:100vw; height:100vh; ' +
-    'background:rgba(0,0,0,0.6); z-index:2147483647; display:flex; align-items:center; ' +
-    'justify-content:center; font-family:Arial,Helvetica,sans-serif;';
+    'background:rgba(0,0,0,0.6); z-index:2147483647; ' +
+    'font-family:Arial,Helvetica,sans-serif;';
 
-  // Create popup
+  // Create popup — positioned in center initially, freely moveable
   var popup = document.createElement('div');
   popup.style.cssText = 'background:#1a1a2e; border-radius:12px; padding:0; width:320px; ' +
-    'max-width:90vw; box-shadow:0 8px 32px rgba(0,0,0,0.5); overflow:hidden;';
+    'min-width:260px; max-width:90vw; min-height:180px; ' +
+    'box-shadow:0 8px 32px rgba(0,0,0,0.5); overflow:hidden; ' +
+    'position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); ' +
+    'z-index:2147483648; resize:both;';
 
-  // Header
-  var header = '<div style="display:flex; justify-content:space-between; align-items:center; ' +
-    'padding:14px 18px; border-bottom:1px solid rgba(255,255,255,0.08);">' +
-    '<span style="color:#fff; font-size:14px; font-weight:600;">ScrollVeil</span>' +
+  // Header — doubled as drag handle
+  var svLogo = 'data:image/png;base64,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';
+  var header = '<div class="scrollveil-popup-header" style="display:flex; justify-content:space-between; align-items:center; ' +
+    'padding:14px 18px; border-bottom:1px solid rgba(255,255,255,0.08); ' +
+    'cursor:grab; user-select:none;">' +
+    '<span style="display:flex; align-items:center; gap:8px; color:#fff; font-size:14px; font-weight:600;">' +
+    '<img src="' + svLogo + '" style="width:22px; height:22px; border-radius:4px;" alt="ScrollVeil">' +
+    'ScrollVeil <span style="color:#555; font-size:11px; font-weight:400; margin-left:2px;">drag to move</span></span>' +
     '<span class="scrollveil-popup-close" style="color:#888; cursor:pointer; font-size:18px; ' +
     'line-height:1; padding:2px 6px;">✕</span></div>';
 
@@ -1236,6 +1243,44 @@ function showUnblurPopup(result, onReveal, onCancel) {
   backdrop.appendChild(popup);
   document.body.appendChild(backdrop);
 
+  // ── Drag to move ──────────────────────────────────────────────
+  var dragHandle = popup.querySelector('.scrollveil-popup-header');
+  var isDragging = false;
+  var dragOffsetX = 0, dragOffsetY = 0;
+
+  dragHandle.addEventListener('mousedown', function (e) {
+    if (e.target.classList.contains('scrollveil-popup-close')) return;
+    isDragging = true;
+    // Convert from transform-centered to fixed top/left positioning
+    var rect = popup.getBoundingClientRect();
+    popup.style.transform = 'none';
+    popup.style.top = rect.top + 'px';
+    popup.style.left = rect.left + 'px';
+    dragOffsetX = e.clientX - rect.left;
+    dragOffsetY = e.clientY - rect.top;
+    dragHandle.style.cursor = 'grabbing';
+    e.preventDefault();
+  });
+
+  document.addEventListener('mousemove', function (e) {
+    if (!isDragging) return;
+    var newLeft = e.clientX - dragOffsetX;
+    var newTop = e.clientY - dragOffsetY;
+    // Keep popup within viewport
+    newLeft = Math.max(0, Math.min(newLeft, window.innerWidth - popup.offsetWidth));
+    newTop = Math.max(0, Math.min(newTop, window.innerHeight - popup.offsetHeight));
+    popup.style.left = newLeft + 'px';
+    popup.style.top = newTop + 'px';
+  });
+
+  document.addEventListener('mouseup', function () {
+    if (isDragging) {
+      isDragging = false;
+      dragHandle.style.cursor = 'grab';
+    }
+  });
+  // ─────────────────────────────────────────────────────────────
+
   // Event handlers
   var closePopup = function () {
     backdrop.remove();
@@ -1295,9 +1340,9 @@ function showUnblurPopup(result, onReveal, onCancel) {
     });
   }
 
-  // Click backdrop to close
+  // Click backdrop to close (only if not dragging)
   backdrop.addEventListener('click', function (e) {
-    if (e.target === backdrop) closePopup();
+    if (e.target === backdrop && !isDragging) closePopup();
   });
 
   // Escape key to close
@@ -1776,7 +1821,7 @@ async function processImage(img) {
         }
 
         // Add floating re-blur badge: "score% | Reblur"
-        const reblurBadgeHTML = getScoreBadgeHTML(result.score, 'reblur');
+        const reblurBadgeHTML = getScoreBadgeHTML((typeof result.displayScore === 'number' ? result.displayScore : result.score), 'reblur');
         const reblurButton = document.createElement('div');
         reblurButton.innerHTML = reblurBadgeHTML;
 

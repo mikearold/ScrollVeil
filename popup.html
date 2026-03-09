@@ -66,7 +66,7 @@
 
     body {
       width: 320px;
-      padding: 16px;
+      padding: 12px;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
       background: var(--bg-primary);
       color: var(--text-primary);
@@ -78,7 +78,7 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      margin-bottom: 12px;
+      margin-bottom: 8px;
     }
     .header h1 {
       font-size: 18px;
@@ -96,10 +96,10 @@
       align-items: center;
       justify-content: center;
       gap: 8px;
-      padding: 8px 12px;
+      padding: 6px 10px;
       background: var(--bg-status);
       border-radius: 6px;
-      margin-bottom: 14px;
+      margin-bottom: 10px;
       font-size: 13px;
       font-weight: 500;
       color: #4CAF50;
@@ -128,13 +128,13 @@
 
     /* ═══ Section Styling ═══ */
     .section {
-      margin-bottom: 14px;
-      padding-bottom: 14px;
+      margin-bottom: 10px;
+      padding-bottom: 10px;
       border-bottom: 1px solid var(--border-color);
     }
     .section:last-of-type {
       border-bottom: none;
-      margin-bottom: 10px;
+      margin-bottom: 6px;
     }
     .section-title {
       display: block;
@@ -280,6 +280,33 @@
       font-size: 13px;
       text-align: right;
     }
+
+    /* ═══ Collapsible Section ═══ */
+    .section-toggle {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+      user-select: none;
+    }
+    .section-toggle:hover {
+      opacity: 0.8;
+    }
+    .toggle-arrow {
+      font-size: 12px;
+      color: var(--text-muted);
+      transition: transform 0.2s ease;
+    }
+    .toggle-arrow.open {
+      transform: rotate(90deg);
+    }
+    .collapsible-content {
+      display: none;
+      margin-top: 6px;
+    }
+    .collapsible-content.open {
+      display: block;
+    }
   </style>
 </head>
 <body>
@@ -307,15 +334,19 @@
   <div class="section">
     <label class="label-bold">Auto-unblur below this risk level</label>
     <div class="slider-row">
-      <input type="range" id="autoUnblurSlider" min="0" max="100" step="5">
-      <span class="slider-value" id="autoValue">20%</span>
+      <input type="range" id="autoUnblurSlider" min="0" max="100" step="5" value="0">
+      <span class="slider-value" id="autoValue">0%</span>
     </div>
     <div class="hint">0% = manual only · 100% = auto-unblur everything</div>
   </div>
 
   <!-- ═══ Video Analysis Settings ═══ -->
   <div class="section">
-    <label class="label-bold">🎬 Video Analysis</label>
+    <div class="section-toggle" id="videoToggle">
+      <label class="label-bold" style="margin-bottom:0; cursor:pointer;">🎬 Video Analysis</label>
+      <span class="toggle-arrow" id="videoArrow">▸</span>
+    </div>
+    <div class="collapsible-content" id="videoContent">
 
     <label for="videoInterval" style="margin-top:6px;">Frame interval</label>
     <select id="videoInterval">
@@ -341,6 +372,8 @@
       <span class="slider-value" id="earlyExitValue">75%</span>
     </div>
     <div class="hint">Stop analyzing if risk exceeds this level. 0% = never stop early.</div>
+
+    </div><!-- end collapsible-content -->
   </div>
 
   <!-- ═══ Action Buttons ═══ -->
