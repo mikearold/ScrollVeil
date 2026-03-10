@@ -4,6 +4,42 @@
 
 ---
 
+## 2026-03-10 — New Icons & Logos Across All Platforms
+
+### Summary
+Deployed new cyberpunk eye+shield logo across the entire ScrollVeil ecosystem: Chrome extension, website, and Android app. Icons extracted from a master icon sheet with two design variants: transparent background (extension toolbar + website) and black background (Android home screen + store listings). The 512x512 and 1024x1024 app logos were regenerated from a separate high-res source to avoid upscaling blur.
+
+### What Changed
+
+**Chrome Extension (8 icons, transparent background):**
+- icon16, icon19, icon32, icon38 (retina), icon48, icon64, icon128
+- store_icon_128 (black background for Chrome Web Store)
+
+**Website (9 files + HTML updates):**
+- favicon.ico, favicon-16/32/48.png, nav-logo-48.png, apple-touch-180.png
+- hero-wide-1024.png (natural aspect ratio), hero-banner-with-text.png, hero-512.png
+- index.html: Updated favicon links, nav logo, added hero image
+
+**Android App (5 mipmap icons, black background):**
+- mdpi (48px), hdpi (72px), xhdpi (96px), xxhdpi (144px), xxxhdpi (192px)
+
+**App Store Logos (19 sizes, black background):**
+- Full set from 29x29 to 1024x1024 for Play Store / App Store submissions
+
+### Design Decisions
+- Transparent for extension/website (eye floats naturally)
+- Black background for Android/stores (launchers apply shaped masks; Play Store rejects transparency)
+- "As-is" crop (full eye preserved) over center-crop to keep wing tips visible
+- 512/1024 sourced from separate high-res image (1330px wide) to avoid upscaling artifacts
+
+### Files Modified
+- `icons/` — 8 extension icon files
+- `index.html` — favicon links, nav logo, hero image
+- Root website — 9 new icon/logo files
+- Android mipmap folders — 5 icons
+
+---
+
 ## 2026-03-06 — Popup: Protection Toggle + Blur Slider Fix
 
 ### 1. Protection Active → On/Off Toggle Button
