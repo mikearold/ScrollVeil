@@ -36,7 +36,12 @@
         "personDetection.js",
         "detector.js",
         "languageScoring.js",
-        "content.js"
+        "settings.js",
+        "youtube.js",
+        "unblur-popup.js",
+        "content.js",
+        "image-processor.js",
+        "video-processor.js"
       ],
       "run_at": "document_start"
     }

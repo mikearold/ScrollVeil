@@ -890,3 +890,173 @@ Updated scrollveil.com landing page to remove outdated or strategically sensitiv
 - `index.html` — 8 content edits
 - `.gitignore` — Created (excludes API key.txt and .bak files)
 - `DEVLOG.md` — this entry
+
+
+---
+
+## 2026-03-13 — Settings Module Extraction (content.js Modular Refactor Step 1)
+
+### Summary
+First step of the content.js modular refactor: extracted all settings, site detection, CSS blur shield, and live update logic into a new `settings.js` module. This is the foundation for the full modular split that will enable a shared core between Chrome extension and Android app.
+
+### What Moved to settings.js
+- **Site detection:** `isOnXDomain`, `isOnYouTube` hostname checks
+- **Setting variables:** `enabled`, `blurStrength`, `autoUnblurThreshold`, `videoSampling` (interval, duration, early exit)
+- **CSS blur shield:** The entire `injectBlurCSS()` function and its enable/disable gating
+- **Settings loading:** All three `chrome.storage.sync.get()` calls (enabled, main settings, video sampling)
+- **Auto-unblur migration:** The one-time boolean-to-threshold migration logic
+- **Live update listener:** The `chrome.storage.onChanged` handler for all settings
+- **`updateExistingBlurs()`:** Updates already-blurred elements when blur strength changes
+
+### How It Works
+- `settings.js` wraps everything in an IIFE and exposes `window.ScrollVeilSettings` with getter properties
+- Getters mean the values are always live — when settings change, any code reading `ScrollVeilSettings.blurStrength` automatically gets the new value
+- `VIDEO_SAMPLING_DEFAULTS` in content.js is now a reference to the same object, so mutations from the onChange listener propagate automatically
+- Local aliases (`isOnXDomain`, `isOnYouTube`) in content.js maintain backward compatibility
+
+### Files Modified
+- **NEW: `settings.js`** — 193 lines, all settings logic
+- **`content.js`** — Removed ~170 lines of settings code, added aliases and references to ScrollVeilSettings. Reduced from 3,237 to 3,064 lines
+- **`manifest.json`** — Added `settings.js` before `content.js` in content_scripts JS array
+
+### Testing Checklist
+- [ ] Extension loads without console errors
+- [ ] Images blur on page load (CSS shield working)
+- [ ] Score badges appear after analysis
+- [ ] Popup blur strength slider updates blur in real-time
+- [ ] Auto-unblur threshold works correctly
+- [ ] Video frame sampling works with custom settings
+- [ ] Enable/disable toggle in popup works
+- [ ] Works on X/Twitter, YouTube, and generic sites
+
+### Next Steps
+This establishes the module pattern for the full refactor. Planned extraction order:
+1. ~~settings.js~~ ✅ (this session)
+2. YouTube thumbnail system → `sites/youtube.js`
+3. Unblur popup → `ui/unblur-popup.js`
+4. Floating overlay system → `ui/overlays.js`
+5. Image processing → `pipeline/images.js`
+6. Video processing → `pipeline/videos.js`
+7. Observer/scanner → `core/observer.js`
+
+
+### Bug Fix: Live Blur Strength Update
+After initial testing, discovered that changing blur strength in the popup required a page refresh. The `onChanged` handler was updating the internal `blurStrength` variable and calling `updateExistingBlurs()` (which updates inline-blurred elements), but was missing the CSS variable update (`--scrollveil-blur`) that controls the blur shield on unanalyzed content. Added `document.documentElement.style.setProperty('--scrollveil-blur', blurStrength + 'px')` to the blur strength change handler. Live updates now work correctly.
+
+
+---
+
+## 2026-03-13 — YouTube Module Extraction (content.js Modular Refactor Step 2)
+
+### Summary
+Extracted the entire YouTube thumbnail system (~420 lines) into a new `youtube.js` module. This is the second module extraction in the content.js refactor, following the settings module earlier today.
+
+### What Moved to youtube.js
+- **Cache & tracking:** `ytThumbCache` (Map), `ytObservedThumbs` (WeakSet)
+- **Helpers:** `getYTVideoURL`, `createYTBadge`, `ytScoreBadgeHTML`, `getYTBadgeHost`
+- **Core functions:** `setupYTThumbnail`, `injectYTBadgeFromCache`, `runYTAnalysis`, `updateYTBadgeAfterAnalysis`
+- **Watch page:** `setupWatchPageBadge`, `placeWatchBadge`, `watchPageProcessed` state
+- **SPA navigation handler:** The 1-second interval that detects YouTube URL changes and resets video state
+
+### Dependency Pattern
+YouTube module loads BEFORE content.js but needs functions defined IN content.js (detector, showUnblurPopup, scoreElementText, etc.). Solved with a `registerDeps()` pattern:
+- youtube.js defines a `deps` object with null placeholders
+- content.js calls `ScrollVeilYouTube.registerDeps({...})` after detector initializes
+- All YouTube functions reference `deps.detector`, `deps.showUnblurPopup`, etc.
+- On non-YouTube sites, the module exposes no-op functions (zero overhead)
+
+### Files Modified
+- **NEW: `youtube.js`** — 428 lines, full YouTube thumbnail system
+- **`content.js`** — Removed ~411 lines, added aliases and registerDeps call. Reduced from 3,064 to 2,662 lines
+- **`manifest.json`** — Added `youtube.js` between `settings.js` and `content.js`
+
+### Testing Checklist
+- [ ] Extension loads without console errors on non-YouTube sites
+- [ ] YouTube thumbnails blur on page load
+- [ ] "Detecting..." badge appears, then scored badge after analysis
+- [ ] Reveal/Reblur toggle works on YouTube thumbnails
+- [ ] YouTube SPA navigation (clicking videos) resets analysis state
+- [ ] YouTube hover preview blurs correctly
+- [ ] X/Twitter still works (unrelated to this change, but verify no regressions)
+- [ ] Generic sites still work
+
+### Running Total
+- content.js started at 3,237 lines
+- After settings.js extraction: 3,064 lines
+- After youtube.js extraction: 2,653 lines
+- Total removed: 584 lines (~18% of original)
+
+
+---
+
+## 2026-03-13 — Unblur Popup Module Extraction (content.js Modular Refactor Step 3)
+
+### Summary
+Extracted the unblur confirmation popup and its helper functions (~470 lines) into `unblur-popup.js`. This is the third module extraction today.
+
+### What Moved to unblur-popup.js
+- **`showUnblurPopup()`** — the full reveal confirmation dialog (~258 lines): draggable popup, score display, scene summary, reasons list, visual/language score breakdown, reveal/cancel buttons, keyboard escape handler
+- **`getHumanReadableReasons()`** — translates technical detection reasons into user-friendly language (~108 lines)
+- **`getSceneSummary()`** — generates natural one-line scene descriptions from detection data (~109 lines)
+
+### What Stayed in content.js
+- **`getScoreBadgeHTML()`** — used by image/video badge code throughout content.js (7 references)
+- **`getScoreColor()`** — used by both the popup module and content.js badge code (shared utility)
+
+### Files Modified
+- **NEW: `unblur-popup.js`** — 500 lines, popup + helper functions
+- **`content.js`** — Removed ~470 lines, added alias. Reduced from 2,662 to 2,192 lines
+- **`manifest.json`** — Added `unblur-popup.js` between `youtube.js` and `content.js`
+
+### Running Total
+- content.js started at 3,237 lines
+- After settings.js: 3,064 lines
+- After youtube.js: 2,653 lines
+- After unblur-popup.js: 2,192 lines
+- **Total removed: 1,045 lines (32% of original)**
+
+
+---
+
+## 2026-03-13 — Image & Video Processor Extraction (content.js Modular Refactor Steps 4 & 5)
+
+### Summary
+Extracted all image and video processing code into two dedicated modules. content.js is now just the glue — globals, scheduler, detector init, and scanner/observer.
+
+### What Moved to image-processor.js (657 lines)
+- `markImageSafe`, `getYTContainer`, `getScoreBadgeHTML`, `getScoreColor`
+- `cleanupAllOverlaysForImage`, `addDetectingBadge`, `removeDetectingBadge`, `addSafeBadge`
+- `processImage`, `blurImage`
+
+### What Moved to video-processor.js (1,086 lines)
+- `getVideoCacheKey`, `cancelVideoFrameSampling`, `startVideoFrameSampling`
+- `finalizeVideoAnalysis`, `updateVideoFrameBadge`, `markVideoSafe`
+- `processVideo`, `createFloatingOverlay`, `cleanupOverlayElement`, `cleanupVideoOverlays`, `blurVideo`
+
+### Load Order Strategy
+Unlike settings/youtube/popup modules which load BEFORE content.js, the processor files load AFTER it. This is because they reference `const` globals (`overlayRegistry`, `processedImages`, `detector`, etc.) defined in content.js. The scanner in content.js calls processor functions (`processImage`, `processVideo`) only asynchronously (inside `waitForDetector` callback), so the processor files are guaranteed to be loaded by the time they're needed.
+
+### Files Modified
+- **NEW: `image-processor.js`** — 657 lines
+- **NEW: `video-processor.js`** — 1,086 lines
+- **`content.js`** — Reduced to 474 lines (globals, scheduler, detector init, scanner/observer)
+- **`manifest.json`** — Added both processor files after content.js
+
+### Final Module Architecture
+```
+Load order:
+1. personDetection.js    — ML person detection (offscreen)
+2. detector.js           — ML scoring pipeline
+3. languageScoring.js    — Text/language analysis
+4. settings.js (195)     — Settings, site detection, CSS blur shield
+5. youtube.js (428)      — YouTube thumbnail system
+6. unblur-popup.js (500) — Reveal confirmation popup
+7. content.js (474)      — Globals, scheduler, detector init, scanner
+8. image-processor.js (657)  — Image analysis & blur
+9. video-processor.js (1086) — Video analysis, frame sampling & blur
+```
+
+### Running Total
+- content.js started at 3,237 lines → now 474 lines
+- **Total removed: 2,763 lines (85% of original)**
+- Code is now in 5 focused modules + slim content.js glue
