@@ -1060,3 +1060,343 @@ Load order:
 - content.js started at 3,237 lines → now 474 lines
 - **Total removed: 2,763 lines (85% of original)**
 - Code is now in 5 focused modules + slim content.js glue
+
+
+## 2026-03-13 — Android Parity Update: Modular Architecture Sync
+
+### What Was Done
+Updated the Android WebView app to use the Chrome extension's new modular architecture. The Android app was running the OLD monolithic content.js (3,237 lines). Now it uses the same 9 modular JS files as the Chrome extension.
+
+### Files Copied to Android Assets (from Chrome extension)
+Replaced the old monolithic `content.js` with all new modules:
+- `settings.js` (9.5 KB) — Settings, site detection, CSS blur shield
+- `youtube.js` (16.7 KB) — YouTube thumbnail system
+- `unblur-popup.js` (28.6 KB) — Reveal confirmation popup
+- `content.js` (19.8 KB) — Slim glue file (globals, scheduler, detector init, scanner/observer)
+- `image-processor.js` (30.7 KB) — Image analysis & blur
+- `video-processor.js` (51.8 KB) — Video analysis, frame sampling & blur
+- `profanity-list-en.json` (63.4 KB) — Language scoring word list (new for Android)
+
+Also refreshed: `personDetection.js`, `detector.js`, `languageScoring.js`, `blur-shield.css`
+
+### Chrome-Shim Updates (`chrome-shim.js`)
+- Added `chrome.runtime.getURL()` shim — creates a blob URL from pre-injected profanity JSON so `languageScoring.js` can `fetch()` it identically to the Chrome extension
+- Added `chrome.runtime.id` property
+- Profanity list is injected as `window._scrollveilProfanityJSON` by MainActivity before the shim runs
+
+### MainActivity.java Changes
+- Added fields for 6 new modules + profanity JSON (12 total assets loaded)
+- Updated `injectAllScripts()` injection order to match Chrome manifest:
+  1. CSS blur shield (as style tag)
+  2. Profanity JSON (as `window._scrollveilProfanityJSON`)
+  3. Chrome API shim
+  4. personDetection.js
+  5. detector.js
+  6. languageScoring.js
+  7. settings.js
+  8. youtube.js
+  9. unblur-popup.js
+  10. content.js
+  11. image-processor.js
+  12. video-processor.js
+
+### Build Result
+APK builds successfully (BUILD SUCCESSFUL in 14s). Not yet tested on device.
+
+### What's Next
+- Test APK on Michael's Galaxy A16
+- Settings persistence via SharedPreferences (chrome-shim still uses in-memory storage)
+- Android-specific bug fixes (YouTube badges, Instagram, Reddit, pointer-events)
+- Establish shared core workflow to prevent future drift between platforms
+
+
+## 2026-03-13 — Android Parity Update: Modular Architecture Sync
+
+### Problem
+The Android app's WebView injection was using the OLD monolithic `content.js` (3,237 lines) while the Chrome extension had been refactored into 9 focused modules. The Android app was missing 5 new module files entirely and had outdated copies of existing files.
+
+### What Changed
+
+#### Chrome Extension Module Load Order (from manifest.json)
+```
+blur-shield.css → personDetection.js → detector.js → languageScoring.js → settings.js → youtube.js → unblur-popup.js → content.js → image-processor.js → video-processor.js
+```
+
+#### Android Assets Updated
+Replaced 6 old files and added 6 new ones. Android assets now contain all 12 files:
+- `blur-shield.css` (updated)
+- `chrome-shim.js` (updated — see below)
+- `personDetection.js` (updated)
+- `detector.js` (updated)
+- `languageScoring.js` (updated)
+- `profanity-list-en.json` (NEW — language scoring word list)
+- `settings.js` (NEW — centralized settings, site detection, CSS blur shield)
+- `youtube.js` (NEW — YouTube thumbnail system)
+- `unblur-popup.js` (NEW — reveal confirmation popup)
+- `content.js` (REPLACED — slim 474-line glue file, was 3,237-line monolith)
+- `image-processor.js` (NEW — image analysis & blur)
+- `video-processor.js` (NEW — video analysis, frame sampling & blur)
+
+#### chrome-shim.js Updates
+- Added `chrome.runtime.getURL()` shim — returns a blob URL for `profanity-list-en.json` so `languageScoring.js` can `fetch()` the word list just like in the Chrome extension
+- Added `chrome.runtime.id` property
+- Profanity list is pre-loaded by MainActivity as `window._scrollveilProfanityJSON` before the shim runs, then converted to a blob URL inside the shim
+
+#### MainActivity.java Updates
+- Added 6 new field variables: `settingsJs`, `youtubeJs`, `unblurPopupJs`, `imageProcessorJs`, `videoProcessorJs`, `profanityListJson`
+- Updated `onCreate()` to load all 12 assets
+- Updated `injectAllScripts()` injection order:
+  1. CSS blur shield (as style tag)
+  2. Profanity JSON (as `window._scrollveilProfanityJSON` global)
+  3. Chrome API shim
+  4. personDetection.js
+  5. detector.js
+  6. languageScoring.js
+  7. settings.js
+  8. youtube.js
+  9. unblur-popup.js
+  10. content.js
+  11. image-processor.js
+  12. video-processor.js
+
+### APK Built & Installed
+- Build: `assembleDebug` — SUCCESS
+- Installed via ADB wireless to Galaxy A16 at `192.168.1.2:44433`
+
+### Still TODO
+- **Settings persistence** — chrome-shim still uses in-memory storage; need SharedPreferences bridge so settings survive app restarts
+- **Shared core workflow** — establish build-time copy or shared directory so files don't drift again
+- **Android-specific bug fixes** — YouTube badges, Instagram timing, Reddit, pointer-events on overlays
+- **Test the new modular injection** — verify all modules initialize correctly in WebView
+
+### Files Modified
+- `C:\Dev\ScrollVeilAndroid\app\src\main\assets\chrome-shim.js` — rewritten with getURL shim
+- `C:\Dev\ScrollVeilAndroid\app\src\main\assets\*` — all JS files replaced with Chrome extension versions
+- `C:\Dev\ScrollVeilAndroid\app\src\main\java\com\scrollveil\app\MainActivity.java` — new fields, updated load & inject
+
+
+### Debugging: WebView Scope Issues (3 iterations)
+
+**Problem 1 — `sendMessage` hanging forever:**
+`personDetection.js` calls `chrome.runtime.sendMessage()` with a callback. The shim's `sendMessage` was a no-op that never called the callback, so `detectPeople()` hung forever → `detector.analyzeImage()` hung → badges never created.
+**Fix:** Updated shim's `sendMessage` to call callback with `null`. Added `chrome.runtime.lastError = null`.
+
+**Problem 2 — `processImage is not defined`:**
+In the Chrome extension, all content scripts share one execution context, so `function processImage()` in `image-processor.js` is visible to `content.js`. In Android WebView, `evaluateJavascript()` runs each script in its own scope. `content.js` was injected BEFORE `image-processor.js` and called `processImage()` immediately via `waitForDetector() → scanImages()`, which resolved synchronously because `ScrollVeilDetector` was already defined.
+
+**Problem 3 — `const` already declared errors:**
+`onPageFinished` fires multiple times on SPAs like X. The re-injection guard `if(!window.X){script}` wrapped scripts in `if` blocks, which turned `function` declarations into **block-scoped functions** — invisible outside the block and invisible to other scripts. The `if` blocks themselves caused the `const already declared` errors on the second injection.
+
+**Problem 4 — Shared globals invisible across scripts:**
+`const`/`let` at the top level of one `evaluateJavascript()` call are NOT visible in subsequent calls (unlike Chrome extension content scripts which share a lexical scope). Variables like `overlayRegistry`, `processedImages`, `isOnXDomain` defined in `content.js` were invisible to `image-processor.js`.
+
+### Solution: Android Bridge + Injection Order
+
+1. **Changed `const`/`let` to `var`** in the Android copy of `content.js` for all shared globals (`overlayRegistry`, `processedImages`, `isOnXDomain`, `detector`, etc.). `var` declarations at the top level of `evaluateJavascript()` attach to `window`.
+
+2. **Created `android-bridge.js`** — injected AFTER popup module and BEFORE processors. The bridge creates all shared globals on `window` (`overlayRegistry`, `processedImages`, `isOnXDomain`, `showUnblurPopup`, `logDetection`, `getVideoContainer`, scheduler sets, etc.) so they exist before `image-processor.js` and `video-processor.js` load.
+
+3. **Reordered injection:** CSS → profanity JSON → shim → personDetection → detector → languageScoring → settings → youtube → popup → **bridge** → **image-processor** → **video-processor** → **content.js** (LAST, because it calls `processImage`/`processVideo` immediately).
+
+4. **Removed all `if(!window.X){...}` re-injection guards** — they created block scopes that trapped function declarations. Scripts now inject bare, accepting that `onPageFinished` double-fire will cause harmless `already declared` errors on the second attempt.
+
+5. **Android `content.js` references `window.*` globals** instead of creating new ones (e.g., `var overlayRegistry = window.overlayRegistry;` instead of `var overlayRegistry = new Map();`).
+
+### Key Lesson: Chrome Extension vs WebView Scoping
+- Chrome extension content scripts: all share one global lexical scope. `const x` in file A is visible in file B.
+- WebView `evaluateJavascript()`: each call has its own scope for `const`/`let`. Only `var` and `function` declarations (at top level, NOT inside blocks) land on `window`.
+- Wrapping code in `if(){...}` for re-injection guards turns `function` declarations into block-scoped — invisible to other scripts.
+
+### Files Modified
+- `android-bridge.js` — new file, creates shared globals on window
+- `chrome-shim.js` — sendMessage callback fix, getURL shim, lastError
+- `content.js` (Android copy) — const→var, window.* references
+- `MainActivity.java` — new injection order, bridge injection, console logging, no block-scope guards
+
+
+### Settings Persistence via SharedPreferences
+
+**Problem:** Chrome-shim stored settings in-memory only. Every time the app was closed and reopened, blur strength, auto-unblur threshold, and all other settings reset to defaults.
+
+**Solution: Three-layer persistence**
+
+1. **`ScrollVeilStorage` Java class** — inner class in MainActivity with `@JavascriptInterface` annotations. Exposes `get(key)`, `set(key, value)`, and `getAll()` to JavaScript via `ScrollVeilNative` bridge object. Reads/writes Android SharedPreferences (`scrollveil_settings`).
+
+2. **Chrome-shim updated** — on initialization, loads saved settings from `ScrollVeilNative.getAll()` instead of using hardcoded defaults. On `chrome.storage.sync.set()`, persists each key to SharedPreferences via `ScrollVeilNative.set(key, value)`.
+
+3. **MainActivity UI sync** — `onCreate()` reads SharedPreferences and sets slider positions, label text, and toggle state to match saved values. `pushSettingToShim()` now saves to SharedPreferences in addition to pushing to the chrome-shim.
+
+**Data flow:**
+- User changes slider → `pushSettingToShim()` → saves to SharedPreferences + pushes to shim → shim fires `onChanged` → settings.js updates live
+- App restarts → `onCreate()` reads SharedPreferences → sets slider UI → shim loads from `ScrollVeilNative.getAll()` → settings.js reads from shim → everything matches
+
+### Files Modified
+- `MainActivity.java` — added SharedPreferences import, JavascriptInterface, ScrollVeilStorage class, UI init from prefs, persist in pushSettingToShim
+- `chrome-shim.js` — load from ScrollVeilNative on init, persist on set
+
+
+## 2026-03-13 — Shared Core Established via Gradle Sync Task
+
+### Problem
+Chrome extension and Android app had separate copies of all JS files. Fixing a bug on one platform required manually copying files to the other, which is error-prone and causes drift.
+
+### Solution: Gradle `syncSharedCore` Task
+Added a build task to `app/build.gradle.kts` that automatically syncs files from the Chrome extension directory into Android assets at build time.
+
+**Source of truth:** `C:\Users\Family\OneDrive\Desktop\Vibe Coding\ScrollVeil\`
+**Android assets:** `C:\Dev\ScrollVeilAndroid\app\src\main\assets\`
+
+**What it does:**
+1. Copies 10 shared files as-is: `blur-shield.css`, `detector.js`, `image-processor.js`, `languageScoring.js`, `personDetection.js`, `profanity-list-en.json`, `settings.js`, `unblur-popup.js`, `video-processor.js`, `youtube.js`
+2. Copies `content.js` with automatic `const`/`let` → `var` transform + `window.*` references for WebView scoping
+3. Leaves Android-only files untouched: `chrome-shim.js`, `android-bridge.js`
+4. Runs automatically before `mergeDebugAssets` and `mergeReleaseAssets`
+5. Uses Gradle input/output tracking — only re-copies when source files change
+
+**Workflow going forward:**
+- Edit JS files in the Chrome extension directory only
+- Build the Android APK — Gradle automatically syncs the latest code
+- Android-only files (`chrome-shim.js`, `android-bridge.js`) are edited directly in the Android assets folder
+- No manual copying ever needed
+
+### Files Modified
+- `C:\Dev\ScrollVeilAndroid\app\build.gradle.kts` — added syncSharedCore task
+
+
+## 2026-03-13 — File Upload / Gallery Access in WebView
+
+### Problem
+WebView doesn't handle `<input type="file">` by default. When X showed the media picker for posting images/videos, nothing happened — the gallery never opened.
+
+### Solution
+Implemented `onShowFileChooser` in the WebChromeClient:
+1. Added `ValueCallback<Uri[]> fileUploadCallback` field to track the pending file selection
+2. Overrode `onShowFileChooser()` — creates an intent from the file chooser params and launches it via `startActivityForResult()`
+3. Added `onActivityResult()` — receives the selected file URI and passes it back to the WebView via the callback
+4. Handles edge cases: cancels previous callbacks if a new chooser opens, returns null on cancel
+
+### Files Modified
+- `MainActivity.java` — added ValueCallback import, fileUploadCallback field, FILE_CHOOSER_REQUEST_CODE constant, onShowFileChooser in WebChromeClient, onActivityResult handler
+
+
+---
+
+## 2026-03-15 — ScrollVeil Published on Chrome Web Store 🎉🎉🎉
+
+### Milestone
+ScrollVeil v1.0 has been **approved and published** on the Chrome Web Store. The extension is now publicly available for anyone to install.
+
+### Details
+- Extension ID: `dmlhjkjiomphagapfjpblbopboohoejl`
+- Publisher: mikearold
+- Status: **Published** (was "Pending Review" since 2026-03-07)
+- Review duration: ~8 days
+
+### What This Means
+- Anyone can search for "ScrollVeil" on the Chrome Web Store and install it
+- The extension auto-updates when new versions are published
+- User reviews and ratings are now live
+
+### Launch Checklist — COMPLETE
+- ✅ Website live at scrollveil.com
+- ✅ Email signup working → Mailchimp (via Cloudflare Worker)
+- ✅ support@scrollveil.com → Gmail forwarding
+- ✅ Cloudflare protecting the site
+- ✅ Privacy policy published
+- ✅ Legal page (ToS + Refund + Privacy)
+- ✅ Screenshots and store listing
+- ✅ **Published on Chrome Web Store**
+
+### What's Next
+- Monitor for user feedback and reviews
+- Android app stabilization + Google Play Store submission
+- content.js modular refactor is complete — shared core established via Gradle sync
+- Parental settings lock (v1.0.0 priority — early adoption driver)
+- User accounts + Stripe payment (v1.1.0)
+
+
+
+---
+
+## 2026-03-15 — Android ML Pipeline: TF.js Models Running In-WebView
+
+### Problem
+The Chrome extension runs 4 ML models (COCO-SSD, BlazeFace, BlazePose, MobileNet) in a sandboxed offscreen document. On Android, `personDetection.js` tried to call `chrome.runtime.sendMessage('detectPeople')`, but the chrome-shim returned `null` (no-op). This meant **zero ML intelligence** on Android — no person detection, no face detection, no pose estimation, no clothing classification. The app was scoring images using pixel analysis alone (~20% of the full pipeline).
+
+### Root Cause
+Chrome extension architecture: content script → background worker → offscreen document → sandbox iframe (TF.js runs here).
+Android has none of that infrastructure. The shim's `sendMessage` just returned `null`.
+
+### Solution
+Created `android-ml.js` — a new Android-only file that loads TF.js + all 4 models **directly in the WebView** (no sandbox needed since WebView has no CSP restriction on eval).
+
+### Architecture
+**Phase 1 (immediate):** CSS + profanity list + chrome-shim injected. Then 5 TF.js CDN scripts are loaded via chained `<script>` tags.
+**Phase 2 (after CDN loads):** JavaScript calls `ScrollVeilNative.onTFReady()` → Java `@JavascriptInterface` triggers `injectPhase2Scripts()` on UI thread → remaining modules injected via `evaluateJavascript()`.
+**Timeout fallback:** If CDN takes >15 seconds, Phase 2 fires anyway (pipeline works without ML, same as before).
+
+### CDN Libraries Loaded
+1. `@tensorflow/tfjs@4.22.0`
+2. `@tensorflow-models/coco-ssd@2.2.3`
+3. `@tensorflow-models/blazeface@0.0.7`
+4. `@tensorflow-models/pose-detection@2.1.3`
+5. `@tensorflow-models/mobilenet@2.1.1`
+
+### Files Created
+- `android-ml.js` — ~250 lines. Defines `ScrollVeilPersonDetector.detectPeople()` with same interface as Chrome extension's `personDetection.js`. Runs all 4 models directly in WebView context. Shared promise pattern prevents duplicate model loads.
+
+### Files Modified
+- `MainActivity.java` — Two-phase injection architecture. Added `androidMlJs` field, `injectPhase2Scripts()` method, `onTFReady()` @JavascriptInterface callback. Removed `personDetectionJs` references.
+- Removed `personDetection.js` from Android assets (replaced by `android-ml.js`)
+
+### Key Design Decisions
+1. **CDN over bundled** — Models load from jsdelivr CDN rather than bundling ~10MB of weights in the APK. User is already online (browsing social media). Browser caches the files after first load.
+2. **Java callback over eval()** — Phase 2 scripts injected via `evaluateJavascript()` from Java (triggered by JS→Java bridge) rather than risky `eval()` string escaping.
+3. **`android-ml.js` is Android-only** — Not part of the shared core. Chrome extension continues using its offscreen/sandbox architecture.
+4. **`syncSharedCore` still copies `personDetection.js`** — It sits unused in Android assets. Could be excluded from the Gradle task later.
+
+### Impact
+Android app now has access to the **full detection pipeline** — same as Chrome extension:
+- COCO-SSD person detection gate (no person = auto-safe)
+- Bounding box masking (background pixel elimination)
+- BlazeFace face detection (portrait/headshot caps)
+- BlazePose skeleton (arm/hand exclusion, body zone measurement, pose analysis)
+- MobileNet clothing classification (false positive reduction)
+
+### Status
+BUILD SUCCESSFUL — APK compiled. Testing pending.
+
+
+### Update — Dual WebView Architecture: SUCCESS ✅
+
+After multiple approaches failed due to X.com's strict CSP:
+1. ❌ CDN `<script>` tags — blocked by CSP `script-src`
+2. ❌ Direct `evaluateJavascript` of TF.js — CSP blocks internal `new Function()` calls
+3. ❌ Blob URL iframe sandbox — blocked by CSP `frame-src`
+4. ❌ HTTP response CSP header stripping — didn't intercept properly
+
+The working solution: **Dual WebView architecture**
+- Main WebView loads X.com normally (CSP intact — we don't fight it)
+- Hidden sandbox WebView loads `file:///android_asset/android-sandbox.html` (no CSP)
+- TF.js runs freely in the sandbox WebView
+- Detection requests: main WebView JS → `@JavascriptInterface` (ScrollVeilNative.detectInSandbox) → Java → sandbox WebView `evaluateJavascript` → TF.js models → results back via `@JavascriptInterface` (SandboxBridge.onDetectResult) → Java → main WebView `evaluateJavascript` callback
+
+This mirrors Chrome extension architecture: content script → background → offscreen → sandbox
+
+### Files Created
+- `android-sandbox.html` — standalone HTML page with TF.js libs + model loaders + detection handler, loaded in hidden WebView
+- `android-ml.js` — rewritten to use Java bridge (`ScrollVeilNative.detectInSandbox`) instead of running models directly
+
+### Files Modified
+- `MainActivity.java` — Added `sandboxWebView` field, `SandboxBridge` inner class with `@JavascriptInterface` methods (`onDetectResult`, `onModelsReady`), `detectInSandbox` method on `ScrollVeilStorage`, sandbox WebView initialization with `file:///` URL
+
+### Confirmed Working (from logcat)
+- COCO-SSD: ✅ Person detection + "no people = auto-safe" gate
+- BlazeFace: ✅ Face detection + portrait caps
+- BlazePose: ✅ Skeleton keypoints (loaded in background)
+- MobileNet: ✅ Clothing classification (loaded in background)
+- Bounding box masking: ✅ Background pixel elimination
+- Face exclusion: ✅ Face regions zeroed from skin detection
+
+### Known Issue (pre-existing, not related)
+- SPA navigation re-injection causes `SyntaxError: Identifier already declared` for `ScrollVeilDetector`, `LANGUAGE_WEIGHTS`, `videoViewportObserver`, `observer`. This is the existing `const` re-declaration bug — needs the `const→var` transform in the syncSharedCore task to cover these identifiers.
