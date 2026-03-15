@@ -1400,3 +1400,23 @@ This mirrors Chrome extension architecture: content script → background → of
 
 ### Known Issue (pre-existing, not related)
 - SPA navigation re-injection causes `SyntaxError: Identifier already declared` for `ScrollVeilDetector`, `LANGUAGE_WEIGHTS`, `videoViewportObserver`, `observer`. This is the existing `const` re-declaration bug — needs the `const→var` transform in the syncSharedCore task to cover these identifiers.
+
+
+---
+
+## 2026-03-15 — Website Chrome Store Link + APK Repackage
+
+### Website Update
+- Both "Add to Chrome — Free" CTA buttons now link directly to the Chrome Web Store listing
+- URL: `https://chromewebstore.google.com/detail/scrollveil/dmlhjkjiomphagapfjpblbopboohoejl`
+- Links open in new tab (`target="_blank" rel="noopener"`)
+- Previously the hero button pointed to `#install` and the bottom button pointed to `#` (dead link)
+
+### APK Repackage
+- Fresh debug APK built from current codebase (v1.5.0-alpha2)
+- APK size: ~3.7 MB
+- Includes all improvements since alpha1: modular architecture sync, dual WebView ML sandbox, settings persistence (SharedPreferences), file upload support, shared core via Gradle syncSharedCore
+- Uploaded to GitHub releases as `ScrollVeil-Android-v1.5.0-alpha2.apk`
+
+### Git
+- Committed and pushed: "Link CTA buttons to Chrome Web Store listing"
